@@ -2458,6 +2458,7 @@ function clearSavedData() {
   applySettingsToControls();
   renderMusic();
   refreshResumeBtn();
+  renderShowUI();   // card counts must reflect the wipe immediately
   $('loadStatus').classList.remove('error');
   $('loadStatus').textContent = 'Saved show data cleared.';
 }
