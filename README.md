@@ -43,7 +43,7 @@ cue lists never leave your device — there is no server, no upload, no account,
 - Keyboard-first: `Space` next line, `Enter` GO, `S` fade, `X` stop, `B` blank
 - Console modes: subtitles + music, subtitles only, or music only (a standalone
   soundboard — works great on a phone)
-- Export/import the whole show as a small `.cues.json` to move between machines
+- Export a whole show — audio included — as a single bundle file; drop it on any other machine
 - Works offline after the first visit; installable to the home screen / dock
 
 ## In a pinch, offline

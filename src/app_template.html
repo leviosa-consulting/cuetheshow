@@ -296,7 +296,8 @@
   }
   body.mode-music #rightTabs { display: none; }
   body.mode-music #musicTab { max-width: 680px; width: 100%; margin: 0 auto; }
-  body.mode-music #openOutputBtn, body.mode-music #newPdfBtn { display: none; }
+  body.mode-music #openOutputBtn, body.mode-music #newPdfBtn,
+  body.mode-music #testCardBtn { display: none; }
   body.mode-music #cueCounter { display: none; }
   body.mode-subs #rightTabs { display: none; }
   body.mode-subs #musicAlert { display: none !important; }
@@ -527,7 +528,7 @@
           <select id="showCtl"></select>
         </label>
         <button id="showNewBtn" tabindex="-1">＋ New show</button>
-        <button id="exportBtn" tabindex="-1">Export cues</button>
+        <button id="exportBtn" tabindex="-1" title="One file with script, music cues, settings and audio">Export show</button>
         <button id="newPdfBtn">Load new script</button>
         <button id="testCardBtn" tabindex="-1">Test card</button>
         <button id="printBtn" tabindex="-1">Print cue sheet</button>
@@ -602,8 +603,9 @@
       <tr><td><kbd>N</kbd></td><td>insert a cue</td><td><kbd>X</kbd></td><td>stop all (twice = instant)</td></tr>
     </table>
     <p>Everything is saved in this browser automatically and restores on reopen —
-      switch or add shows from the name in the top bar. Use a show card's ⇩ to export
-      a full bundle (script + music + audio) and drop it on any other machine.</p>
+      switch or add shows from the name in the top bar. <em>Export show</em> (SETUP, or
+      ⇩ on a show card) makes one file with script, music and audio — drop it on any
+      other machine to move the whole show.</p>
     <p class="hpriv">CueTheShow runs entirely in your browser. Your script and audio
       never leave your device. Free &amp; open source (MIT).</p>
   </div>
@@ -1313,30 +1315,6 @@ function goTo(i) {
 }
 function next() { goTo(index + 1); }
 function prev() { goTo(index - 1); }
-function exportCues() {
-  const payload = {
-    version: 2,
-    name: scriptName || (appMode === 'music' ? 'music-cues' : 'subtitles'),
-    exported: new Date().toISOString(),
-    cues: cues,
-    settings: settings,
-    music: {
-      cues: musicCues.map(c => { const o = Object.assign({}, c); delete o.hasAudio; return o; }),
-      standby: musicStandby,
-      master: masterVol,
-    },
-  };
-  const blob = new Blob([JSON.stringify(payload, null, 1)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = (scriptName || (appMode === 'music' ? 'music-cues' : 'subtitles')) + '.cues.json';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-  toast('Exported ' + cues.length + ' cues (with styling) — load the .json on any machine');
-}
-
 function toggleBlank() {
   blanked = !blanked;
   $('blankBtn').classList.toggle('on', blanked);
@@ -1408,7 +1386,7 @@ function bindControls() {
   $('nextBtn').addEventListener('click', () => { next(); document.activeElement.blur(); });
   $('blankBtn').addEventListener('click', () => { toggleBlank(); document.activeElement.blur(); });
   $('openOutputBtn').addEventListener('click', openOutput);
-  $('exportBtn').addEventListener('click', () => { exportCues(); document.activeElement.blur(); });
+  $('exportBtn').addEventListener('click', () => { exportShowBundle(showId); document.activeElement.blur(); });
   $('testCardBtn').addEventListener('click', () => {
     toggleTestCard();
     document.activeElement.blur();
@@ -2718,7 +2696,6 @@ function applyMode() {
   const titleEl = document.querySelector('#topBar .title');
   if (!applyMode._baseTitle) applyMode._baseTitle = titleEl.textContent;
   titleEl.textContent = appMode === 'music' ? 'CueTheShow · Music' : applyMode._baseTitle;
-  $('exportBtn').textContent = appMode === 'music' ? 'Export music cues' : 'Export cues';
   $('modeCtl').value = appMode;
   if (appMode === 'music') {
     // Music-only is a standalone console: no script, no load screen.
