@@ -2077,6 +2077,12 @@ function buildMusicEditor(c) {
   follow.addEventListener('change', () => { c.followMode = follow.value; });
   const fdelay = num(c.followDelay, 0.5);
   fdelay.addEventListener('input', () => { c.followDelay = Math.max(0, +fdelay.value || 0); });
+  const fdelayF = field('…after how many seconds', fdelay);
+  // Only meaningful for the "after a delay" mode; visibility (not
+  // display) so the grid's row pairing stays intact.
+  const syncDelay = () => { fdelayF.style.visibility = follow.value === 'delay' ? '' : 'hidden'; };
+  follow.addEventListener('change', syncDelay);
+  syncDelay();
 
   // Subtitle link: fire (or remind) when that line is stepped onto.
   const link = num(c.linkCue != null ? c.linkCue + 1 : null, 1, 1);
@@ -2122,7 +2128,7 @@ function buildMusicEditor(c) {
     field('While this plays, duck others to (%)', duck), loopWrap,
     field('Fade in (s)', fin), field('Fade out (s)', fout),
     field('Start at (s)', st), field('End at (s)', en),
-    field('When THIS cue starts…', follow), field('…after how many seconds', fdelay),
+    field('When THIS cue starts…', follow), fdelayF,
     linkF, lmodeF,
     snipWrap
   );
