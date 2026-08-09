@@ -1,0 +1,2356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CueTheShow — subtitle & music cues for live performance</title>
+<meta name="description" content="Free subtitle (surtitle) and music cue console for live theatre. Runs entirely in your browser — your script and audio never leave your device.">
+<meta name="theme-color" content="#16181d">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #16181d;
+    --panel: #1e2128;
+    --panel2: #262a33;
+    --border: #333845;
+    --text: #e8eaf0;
+    --dim: #9aa1b0;
+    --accent: #5b9dd9;
+    --accent-soft: #2c4258;
+    --danger: #d95b5b;
+    --ok: #6fbf85;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    position: relative;   /* anchors absolute overlays at any UI zoom */
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+  }
+  button {
+    font: inherit; color: var(--text);
+    background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 7px; padding: 7px 14px; cursor: pointer;
+  }
+  button:hover { background: #2e3340; }
+  button:active { transform: translateY(1px); }
+  button.primary { background: var(--accent-soft); border-color: var(--accent); }
+  button.primary:hover { background: #35506c; }
+  input[type="color"] {
+    width: 42px; height: 28px; padding: 2px; border: 1px solid var(--border);
+    border-radius: 6px; background: var(--panel2); cursor: pointer;
+  }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+  /* ---------- Load screen ---------- */
+  #loadScreen {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 22px; padding: 30px;
+    overflow-y: auto;
+  }
+  #loadScreen h1 { font-size: 26px; font-weight: 600; margin: 0; }
+  #loadScreen .sub { color: var(--dim); margin: 0; max-width: 520px; text-align: center; }
+  #dropZone {
+    width: min(560px, 90vw); padding: 56px 32px;
+    border: 2px dashed var(--border); border-radius: 14px;
+    text-align: center; color: var(--dim); cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  #dropZone.drag { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+  #dropZone strong { color: var(--text); font-size: 16px; }
+  a { color: var(--accent); }
+  #loadStatus { min-height: 22px; color: var(--dim); }
+  #loadStatus.error { color: var(--danger); }
+  #resumeBtn { display: none; }
+  #clearBtn { display: none; color: var(--dim); font-size: 12px; padding: 5px 12px; }
+  #clearBtn:hover { color: var(--danger); border-color: var(--danger); background: var(--panel2); }
+  #pasteWrap { width: min(560px, 90vw); display: flex; flex-direction: column; gap: 8px; }
+  #pasteBox {
+    font: inherit; color: var(--text); background: var(--panel);
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px;
+    resize: vertical; min-height: 60px;
+  }
+  #pasteBox:focus { outline: none; border-color: var(--accent); }
+  #pasteBox::placeholder { color: var(--dim); }
+
+  /* ---------- Console ---------- */
+  /* 100% of body (not 100vh): body always equals the real window even
+     when the UI-size zoom is active — 100vh would overflow the fold. */
+  #console { display: none; height: 100%; flex-direction: column; }
+  #console.active { display: flex; }
+
+  #topBar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--border);
+    flex: 0 0 auto;
+  }
+  #topBar .title { font-weight: 600; }
+  #topBar .spacer { flex: 1; }
+  #cueCounter { color: var(--dim); font-variant-numeric: tabular-nums; }
+  #outputDot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); margin-right: 7px; vertical-align: 1px; }
+  #outputDot.live { background: var(--ok); }
+
+  #main { display: flex; flex: 1 1 auto; min-height: 0; }
+
+  #leftCol {
+    flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;
+    gap: 12px; padding: 14px; overflow-y: auto;
+  }
+
+  #previewWrap { position: relative; width: 100%; max-width: 720px; align-self: center; }
+  #preview {
+    width: 100%; aspect-ratio: 16 / 9; border-radius: 8px;
+    border: 1px solid var(--border); position: relative; overflow: hidden;
+  }
+  #previewText { position: absolute; left: 4%; right: 4%; margin: 0; white-space: pre-wrap; }
+  #blankBadge {
+    display: none; position: absolute; top: 8px; right: 8px;
+    background: var(--danger); color: #fff; font-size: 11px; font-weight: 700;
+    letter-spacing: .08em; padding: 3px 8px; border-radius: 5px;
+  }
+  #blankBadge.on { display: block; }
+
+  #nowNext { display: flex; flex-direction: column; gap: 6px; max-width: 720px; width: 100%; align-self: center; }
+  .cueSlot { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 9px 13px; }
+  .cueSlot .label { font-size: 11px; letter-spacing: .1em; color: var(--dim); font-weight: 700; }
+  #nextText { font-size: 17px; margin-top: 2px; min-height: 22px; }
+  #thenList { margin-top: 2px; }
+  .thenRow { display: flex; gap: 9px; font-size: 13px; color: var(--dim); padding: 2px 0; }
+  .thenRow .n { flex: 0 0 26px; text-align: right; font-size: 11px; font-variant-numeric: tabular-nums; opacity: .7; align-self: baseline; }
+
+  #transport { display: flex; gap: 10px; max-width: 720px; width: 100%; align-self: center; }
+  #transport button { flex: 1; padding: 13px 0; font-size: 15px; }
+  #blankBtn.on { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+  #stylePanel {
+    max-width: 720px; width: 100%; align-self: center;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 13px 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 26px;
+  }
+  .ctl { display: flex; flex-direction: column; gap: 5px; }
+  .ctl > label { font-size: 12px; color: var(--dim); }
+  .ctl .row { display: flex; align-items: center; gap: 10px; }
+  .ctl .val { min-width: 42px; text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; font-size: 12px; }
+  .alignBtns { display: flex; gap: 6px; }
+  .alignBtns button { flex: 1; padding: 5px 0; }
+  .alignBtns button.sel { background: var(--accent-soft); border-color: var(--accent); }
+
+  /* ---------- Right rail: Music / Cue list tabs ---------- */
+  #rightCol {
+    /* rigid: content may never widen the rail, so tab switches don't
+       shuffle the layout */
+    flex: 0 0 400px; width: 400px; min-width: 400px; max-width: 400px;
+    border-left: 1px solid var(--border); background: var(--panel);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  #rightTabs { display: flex; border-bottom: 1px solid var(--border); flex: 0 0 auto; }
+  .rtab {
+    flex: 1; padding: 12px 0; border: none; border-radius: 0; background: none;
+    color: var(--dim); font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .rtab:hover { background: var(--panel2); }
+  .rtab.sel { color: var(--text); background: var(--panel2); box-shadow: inset 0 -2px 0 var(--accent); }
+  .rtab.live::after { content: '●'; color: var(--ok); margin-left: 7px; font-size: 9px; vertical-align: 2px; }
+  #musicTab {
+    flex: 1; overflow-y: auto; overflow-x: hidden; min-height: 0;
+    display: flex; flex-direction: column; gap: 10px; padding: 12px;
+  }
+  #cuesTab { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  #musicAlert {
+    display: none; margin: 10px 12px 0; padding: 10px 12px;
+    background: var(--accent-soft); border: 1px solid var(--accent);
+    border-radius: 7px; font-weight: 600; align-items: center; gap: 9px;
+    animation: mpulse 1.1s ease-in-out infinite alternate;
+  }
+  #musicAlert.on { display: flex; }
+  #musicAlert button { padding: 4px 12px; font-size: 13px; }
+  @keyframes mpulse {
+    from { border-color: var(--accent); box-shadow: 0 0 0 0 rgba(91, 157, 217, .0); }
+    to { border-color: #8dc0ea; box-shadow: 0 0 14px 0 rgba(91, 157, 217, .45); }
+  }
+  .cueItem .mlink { color: var(--accent); margin-left: 6px; cursor: default; }
+  .thenRow .mlink, #nextText .mlink { color: var(--accent); margin-left: 7px; font-style: normal; }
+  .playerRow {
+    display: flex; align-items: center; gap: 9px;
+    background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 9px;
+  }
+  .playerRow .pname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .playerRow .ptime { font-variant-numeric: tabular-nums; color: var(--dim); font-size: 12px; }
+  .playerRow .pstate { color: var(--accent); font-size: 11px; min-width: 54px; text-align: right; }
+  .playerRow button { padding: 3px 9px; font-size: 12px; }
+  #musicStandbyLine { color: var(--dim); font-size: 14px; }
+  #musicStandbyLine strong { color: var(--text); font-weight: 600; }
+  #musicTransport { display: flex; flex-direction: column; gap: 9px; }
+  #goBtn { width: 100%; font-size: 22px; font-weight: 700; padding: 18px 0; letter-spacing: .04em; }
+  #mtRow { display: flex; gap: 8px; }
+  #mtRow button { flex: 1; padding: 13px 0; font-size: 14px; }
+  .mkey {
+    display: inline-block; background: var(--bg); border: 1px solid var(--border);
+    border-bottom-width: 2px; border-radius: 4px; padding: 0 6px;
+    font-size: 11px; color: var(--dim); margin-left: 3px;
+  }
+  #musicTransport .master {
+    display: flex; align-items: center; gap: 8px;
+    color: var(--dim); font-size: 13px;
+  }
+  #musicTransport .master input { flex: 1; }
+  .mcueRow { display: flex; gap: 8px; align-items: baseline; padding: 5px 8px; border-radius: 5px; cursor: pointer; font-size: 13px; }
+  .mcueRow:hover { background: var(--panel2); }
+  .mcueRow.standby { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+  .mcueRow .num { flex: 0 0 20px; text-align: right; color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .mcueRow .mname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mcueRow .badge {
+    font-size: 10px; padding: 1px 5px; border-radius: 4px; align-self: center;
+    background: var(--panel2); border: 1px solid var(--border); color: var(--dim);
+    white-space: nowrap;
+  }
+  .mcueRow .badge.sfx { color: var(--ok); }
+  .mcueRow .badge.warn { color: var(--danger); border-color: var(--danger); }
+  .mcueRow .sum { color: var(--dim); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 38%; }
+  .mcueRow button {
+    visibility: hidden; background: none; border: none; color: var(--dim);
+    padding: 0 3px; font-size: 13px; cursor: pointer;
+  }
+  .mcueRow:hover button { visibility: visible; }
+  .mcueRow button:hover { color: var(--text); background: none; }
+  .mcueRow button.mdel { margin-left: 14px; }
+  .mcueRow button.mdel:hover { color: var(--danger); }
+  #musicAddRow {
+    text-align: center; color: var(--dim); padding: 8px;
+    border: 1px dashed var(--border); border-radius: 6px; cursor: pointer; font-size: 13px;
+  }
+  #musicAddRow:hover, #musicAddRow.drag { border-color: var(--accent); color: var(--text); background: var(--accent-soft); }
+  .mEditor {
+    /* minmax(0,…) lets wide selects shrink instead of stretching the rail */
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px;
+    padding: 9px; background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 6px; margin: 4px 0 6px;
+  }
+  .mEditor label { font-size: 11px; color: var(--dim); display: flex; flex-direction: column; gap: 3px; }
+  .mEditor label.mWide { grid-column: span 2; }
+  .mEditor input[type="text"], .mEditor input[type="number"], .mEditor select {
+    font: inherit; font-size: 12px; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 5px; padding: 4px 6px; width: 100%;
+  }
+  .mEditor .mChk { flex-direction: row; align-items: center; gap: 6px; align-self: end; padding-bottom: 5px; }
+  .mEditor .mBtns { grid-column: span 2; display: flex; gap: 8px; justify-content: flex-end; }
+  .mEditor .mBtns button { padding: 5px 14px; font-size: 12px; }
+
+  #setupPanel {
+    max-width: 720px; width: 100%; align-self: center;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 11px 15px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  #setupPanel .label { font-size: 11px; letter-spacing: .1em; color: var(--dim); font-weight: 700; margin-right: 4px; }
+  #modeWrap { margin-left: auto; display: flex; align-items: center; gap: 7px; color: var(--dim); font-size: 12px; }
+  #modeWrap select {
+    font: inherit; font-size: 13px; color: var(--text); background: var(--panel2);
+    border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; cursor: pointer;
+  }
+  /* Console modes: hide the half that isn't needed */
+  body.mode-music #leftCol { display: none; }
+  body.mode-music #rightCol {
+    flex: 1; width: auto; min-width: 0; max-width: none; border-left: none;
+  }
+  body.mode-music #rightTabs { display: none; }
+  body.mode-music #musicTab { max-width: 680px; width: 100%; margin: 0 auto; }
+  body.mode-music #openOutputBtn, body.mode-music #newPdfBtn { display: none; }
+  body.mode-music #cueCounter { display: none; }
+  body.mode-subs #rightTabs { display: none; }
+  body.mode-subs #musicAlert { display: none !important; }
+  #musicOnlyBtn { color: var(--dim); font-size: 12px; padding: 5px 12px; }
+  #keysHint { text-align: center; color: var(--dim); font-size: 12px; padding-bottom: 4px; }
+
+  /* ---------- Touch devices (body.touch set at runtime) ---------- */
+  button, .rtab, .cueItem, .mcueRow { touch-action: manipulation; }
+  body.touch .cueItem .del, body.touch .cueItem .add,
+  body.touch .mcueRow button { visibility: visible; }
+  body.touch .mcueRow button { font-size: 16px; padding: 1px 6px; }
+  body.touch .cueItem .del, body.touch .cueItem .add { font-size: 17px; padding: 0 7px; }
+  body.touch .cueItem { padding-top: 10px; padding-bottom: 10px; }
+  body.touch .mcueRow { padding-top: 9px; padding-bottom: 9px; }
+  body.touch textarea, body.touch input[type="text"],
+  body.touch input[type="number"], body.touch select {
+    font-size: 16px;   /* keeps iOS from zooming the page on focus */
+  }
+
+  /* ---------- Phones / narrow screens: single column ---------- */
+  @media (max-width: 820px) {
+    #main { flex-direction: column; overflow-y: auto; }
+    #leftCol { flex: none; overflow: visible; padding: 10px; }
+    #rightCol {
+      flex: none; width: auto; min-width: 0; max-width: none;
+      border-left: none; border-top: 1px solid var(--border);
+    }
+    #musicTab { flex: none; overflow: visible; }
+    #cuesTab { flex: none; }
+    #cueList { flex: none; max-height: 430px; overflow-y: auto; }
+    #keysHint { display: none; }   /* no keyboard on a phone */
+    #goBtn { padding: 22px 0; }
+    #transport button { padding: 16px 0; }
+    /* Music cues become two-row cards: full name on top, badge +
+       settings summary + controls underneath. */
+    .mcueRow { flex-wrap: wrap; row-gap: 3px; align-items: center; }
+    .mcueRow .mname { flex: 1 0 calc(100% - 34px); font-weight: 600; }
+    .mcueRow .sum { flex: 1 1 auto; max-width: none; }
+  }
+  #keysHint kbd {
+    background: var(--panel2); border: 1px solid var(--border); border-bottom-width: 2px;
+    border-radius: 4px; padding: 0 5px; font-size: 11px;
+  }
+
+  /* ---------- Cue list ---------- */
+  #cueListHead { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--dim); font-size: 12px; }
+  #cueList { flex: 1; overflow-y: auto; }
+  .cueItem {
+    padding: 7px 12px 7px 14px; border-bottom: 1px solid #23262e;
+    cursor: pointer; display: flex; gap: 9px; align-items: baseline;
+  }
+  .cueItem:hover { background: var(--panel2); }
+  .cueItem.current { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+  .cueItem.sentStart { border-top: 1px solid var(--border); }
+  .cueItem .num { flex: 0 0 34px; text-align: right; color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .cueItem .txt { flex: 1; min-width: 0; }
+  .cueItem .txt .cont { color: var(--dim); }
+  .cueItem .del, .cueItem .add {
+    visibility: hidden; flex: 0 0 auto; align-self: center;
+    color: var(--dim); background: none; border: none; padding: 0 4px;
+    font-size: 15px; line-height: 1; cursor: pointer;
+  }
+  .cueItem:hover .del, .cueItem:hover .add { visibility: visible; }
+  .cueItem .del { margin-left: 10px; }
+  .cueItem .del:hover { color: var(--danger); background: none; }
+  .cueItem .add:hover { color: var(--accent); background: none; }
+  #addEndRow {
+    padding: 10px 14px; text-align: center; color: var(--dim);
+    cursor: pointer; border-bottom: 1px solid #23262e;
+  }
+  #addEndRow:hover { background: var(--panel2); color: var(--text); }
+  .cueItem textarea {
+    width: 100%; font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--accent); border-radius: 5px; padding: 4px 6px; resize: vertical;
+  }
+  #toast {
+    position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 16px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 50;
+  }
+  #toast button {
+    margin-left: 12px; padding: 4px 13px; font-size: 12px; font-weight: 600;
+    background: var(--accent-soft); border-color: var(--accent);
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ================= Load screen ================= -->
+<div id="loadScreen">
+  <h1>CueTheShow</h1>
+  <p class="sub">Load a script PDF. It will be split into subtitle cues of about
+     8 words (max 12), and a new sentence always starts on a fresh screen.</p>
+  <div id="dropZone">
+    <strong>Drop your PDF here</strong><br>or click to choose a file<br>
+    <span style="font-size:12px">(also accepts a .cues.json file exported earlier)</span>
+  </div>
+  <input type="file" id="fileInput" accept=".pdf,.json,application/pdf,application/json" style="display:none">
+  <div id="pasteWrap">
+    <textarea id="pasteBox" rows="5" placeholder="…or paste the script text here — every line break starts a new cue, even without punctuation"></textarea>
+    <button id="pasteBtn">Create cues from pasted text</button>
+  </div>
+  <button id="resumeBtn" class="primary"></button>
+  <button id="musicOnlyBtn">Music-only console (no script needed)</button>
+  <button id="clearBtn">Clear saved show data</button>
+  <div id="loadStatus"></div>
+  <p class="sub" id="aboutLine" style="font-size:12px">Free &amp; open source (MIT) ·
+     runs entirely in your browser — your script and audio never leave this device ·
+     <a id="dlLink" href="cuetheshow-offline.html" download="cuetheshow.html">download offline copy</a> ·
+     <a href="https://github.com/leviosa-consulting/cuetheshow" target="_blank" rel="noopener">source</a></p>
+  <p class="sub" style="font-size:12px">A PDF needs selectable text — if yours is a
+     scan, run OCR on it or paste the text instead. Cues can be edited afterwards
+     (double-click a cue in the list). Wrap words in *asterisks* for
+     <em>italics</em>; italics already in a PDF come across automatically.</p>
+</div>
+
+<!-- ================= Operator console ================= -->
+<div id="console">
+  <div id="topBar">
+    <span class="title">CueTheShow</span>
+    <span id="cueCounter"></span>
+    <span class="spacer"></span>
+  </div>
+
+  <div id="main">
+    <div id="leftCol">
+      <div id="previewWrap">
+        <div id="preview"><p id="previewText"></p><span id="blankBadge">BLANKED</span></div>
+      </div>
+
+      <div id="nowNext">
+        <div class="cueSlot"><span class="label">NEXT</span><div id="nextText"></div></div>
+        <div class="cueSlot"><span class="label">THEN</span><div id="thenList"></div></div>
+      </div>
+
+      <div id="transport">
+        <button id="prevBtn" tabindex="-1">◀ Prev</button>
+        <button id="nextBtn" class="primary" tabindex="-1">Next ▶</button>
+        <button id="blankBtn" tabindex="-1">Blank</button>
+      </div>
+
+      <div id="keysHint">
+        <span id="hintSubs"><kbd>Space</kbd>/<kbd>→</kbd> next &nbsp; <kbd>←</kbd> prev &nbsp;
+        <kbd>B</kbd> blank &nbsp; <kbd>N</kbd> new cue &nbsp;
+        <kbd>Home</kbd>/<kbd>End</kbd> first/last &nbsp;·&nbsp;</span>
+        <span id="hintMusic">music: <kbd>⏎</kbd> GO &nbsp; <kbd>S</kbd> fade &nbsp;
+        <kbd>P</kbd> pause &nbsp; <kbd>X</kbd> stop (×2 = cut) &nbsp;·&nbsp;</span>
+        <span id="hintOut">double-click output window for fullscreen</span>
+      </div>
+
+      <div id="stylePanel">
+        <div class="ctl">
+          <label>Font size</label>
+          <div class="row"><input type="range" id="sizeCtl" min="24" max="160" step="2"><span class="val" id="sizeVal"></span></div>
+        </div>
+        <div class="ctl">
+          <label>Vertical position</label>
+          <div class="row"><input type="range" id="posCtl" min="0" max="100" step="1"><span class="val" id="posVal"></span></div>
+        </div>
+        <div class="ctl">
+          <label>Colours &nbsp;·&nbsp; text / background</label>
+          <div class="row">
+            <input type="color" id="colorCtl">
+            <input type="color" id="bgCtl">
+          </div>
+        </div>
+        <div class="ctl">
+          <label>Horizontal alignment</label>
+          <div class="alignBtns">
+            <button data-align="left" tabindex="-1">Left</button>
+            <button data-align="center" tabindex="-1">Centre</button>
+            <button data-align="right" tabindex="-1">Right</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="setupPanel">
+        <span class="label">SETUP</span>
+        <button id="openOutputBtn" class="primary"><span id="outputDot"></span><span id="outputBtnLabel">Open output window</span></button>
+        <button id="exportBtn" tabindex="-1">Export cues</button>
+        <button id="newPdfBtn">Load new script</button>
+        <label id="modeWrap">UI size
+          <select id="uiScaleCtl">
+            <option value="90">90%</option>
+            <option value="100">100%</option>
+            <option value="110">110%</option>
+            <option value="125">125%</option>
+            <option value="150">150%</option>
+          </select>
+          &nbsp;Console mode
+          <select id="modeCtl">
+            <option value="full">Subtitles + music</option>
+            <option value="subtitles">Subtitles only</option>
+            <option value="music">Music only</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div id="rightCol">
+      <div id="musicAlert"></div>
+      <div id="rightTabs">
+        <button id="tabMusic" class="rtab sel" tabindex="-1">♪ Music</button>
+        <button id="tabCues" class="rtab" tabindex="-1">☰ Cue list</button>
+      </div>
+      <div id="musicTab">
+        <div id="playersBox"></div>
+        <div id="musicStandbyLine"></div>
+        <div id="musicTransport">
+          <button id="goBtn" class="primary" tabindex="-1">GO&nbsp;&nbsp;⏎</button>
+          <div id="mtRow">
+            <button id="mFadeBtn" tabindex="-1">Fade <span class="mkey">S</span></button>
+            <button id="mPauseBtn" tabindex="-1">Pause <span class="mkey">P</span></button>
+            <button id="mPanicBtn" tabindex="-1">Stop <span class="mkey">X</span></button>
+          </div>
+          <div class="master"><span>Vol</span><input type="range" id="masterCtl" min="0" max="100" step="1"><span class="val" id="masterVal"></span></div>
+        </div>
+        <div id="musicList"></div>
+        <div id="musicAddRow">＋ Add audio tracks — click or drop files here</div>
+        <input type="file" id="musicFileInput" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.flac" multiple style="display:none">
+      </div>
+      <div id="cuesTab" style="display:none">
+        <div id="cueListHead">Click a cue to jump · double-click to edit · + inserts · × deletes</div>
+        <div id="cueList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="text/plain" id="pdfjs-worker-src">
+<!--PDFWORKER-->
+</script>
+
+<script>
+<!--PDFJS-->
+</script>
+
+<script>
+'use strict';
+
+/* ================================================================
+   Text engine: sentence splitting + cue chunking
+   Rules: ~8 words average, 12 max, a cue never spans a sentence
+   boundary (new sentence => new screen).
+   ================================================================ */
+/*CHUNK_START*/
+const MAX_WORDS = 12;
+const TARGET_WORDS = 8;
+
+const ABBREVS = new Set(['mr','mrs','ms','dr','st','prof','sr','jr','vs','etc',
+  'eg','ie','no','op','cf','al','fig','approx','dept','est','vol','pp']);
+
+function assembleText(lines) {
+  // lines: raw text lines from the PDF, '' marks a page break.
+  let out = '';
+  for (let raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (/^\d{1,4}$/.test(line)) continue;            // bare page numbers
+    if (out.endsWith('-') && /^[a-z]/.test(line)) {
+      out = out.slice(0, -1) + line;                 // de-hyphenate line break
+    } else if (out.endsWith('-')) {
+      out += line;                                   // keep hyphen, no space
+    } else {
+      out += (out ? ' ' : '') + line;
+    }
+  }
+  return out.replace(/\s+/g, ' ').trim();
+}
+
+function stripStageDirections(text) {
+  // Stage directions in [brackets] or (parentheses) are not subtitled.
+  // Innermost-first replacement, repeated, so nested directions also go;
+  // an unmatched bracket is left alone rather than eating the script.
+  let prev;
+  do {
+    prev = text;
+    text = text.replace(/\[[^\[\]]*\]/g, ' ').replace(/\([^()]*\)/g, ' ');
+  } while (text !== prev);
+  return text;
+}
+
+function splitSentences(text) {
+  const tokens = text.split(' ').filter(Boolean);
+  const sentences = [];
+  let cur = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const w = tokens[i];
+    cur.push(w);
+    if (!/[.!?…]["'”’)\]»]*$/.test(w)) continue;
+    const core = w.replace(/["'”’)\]»]+$/, '').replace(/[.!?…]+$/, '');
+    const plain = core.replace(/\./g, '').toLowerCase();
+    if (/\.$/.test(w.replace(/["'”’)\]»]+$/, '')) &&
+        (plain.length === 1 || ABBREVS.has(plain))) continue;  // "J." / "Dr."
+    const next = tokens[i + 1];
+    if (next && !/^["'“‘(\[«¿¡]*[A-Z0-9]/.test(next)) continue; // ellipsis etc.
+    sentences.push(cur.join(' '));
+    cur = [];
+  }
+  if (cur.length) sentences.push(cur.join(' '));
+  return sentences;
+}
+
+function chunkWords(words) {
+  const n = words.length;
+  if (n <= MAX_WORDS) return [words];
+  const k = Math.max(Math.ceil(n / MAX_WORDS), Math.round(n / TARGET_WORDS));
+
+  // Pick boundaries near the even split points, preferring punctuation
+  // and clause openers as break points.
+  const bounds = [];
+  let prev = 0;
+  for (let i = 1; i < k; i++) {
+    const ideal = Math.round(i * n / k);
+    let best = -1, bestScore = -Infinity;
+    const lo = Math.max(prev + 1, ideal - 2);
+    const hi = Math.min(n - 1, ideal + 2);
+    for (let c = lo; c <= hi; c++) {
+      let score = -Math.abs(c - ideal);
+      if (/[,;:—–]["'”’)\]»]*$/.test(words[c - 1])) score += 10;
+      else if (/^(and|but|or|nor|that|which|who|when|while|where|because|so|then|for|yet)$/i
+               .test(words[c])) score += 3;
+      if (score > bestScore) { bestScore = score; best = c; }
+    }
+    if (best < 0) best = Math.min(n - 1, Math.max(prev + 1, ideal));
+    bounds.push(best);
+    prev = best;
+  }
+
+  let chunks = [];
+  let start = 0;
+  for (const b of bounds.concat([n])) { chunks.push(words.slice(start, b)); start = b; }
+
+  if (chunks.some(c => c.length === 0 || c.length > MAX_WORDS)) {
+    // Fallback: perfectly even distribution (always satisfies the max).
+    chunks = [];
+    const base = Math.floor(n / k), extra = n % k;
+    let s = 0;
+    for (let i = 0; i < k; i++) {
+      const size = base + (i < extra ? 1 : 0);
+      chunks.push(words.slice(s, s + size));
+      s += size;
+    }
+  }
+  return chunks;
+}
+
+function rebalanceEmphasis(cues) {
+  // *emphasis* markers are paired per cue at render time; when a chunk
+  // split lands inside a pair, close it at the cue end and reopen it
+  // on the next cue.
+  let open = false;
+  for (const c of cues) {
+    if (open) c.text = '*' + c.text;
+    open = ((c.text.match(/\*/g) || []).length % 2) === 1;
+    if (open) c.text += '*';
+  }
+  return cues;
+}
+
+function chunkText(text) {
+  const cues = [];
+  const sentences = splitSentences(
+    stripStageDirections(text).replace(/\s+/g, ' ').trim());
+  sentences.forEach((sent, si) => {
+    const words = sent.split(' ').filter(Boolean);
+    const chunks = chunkWords(words);
+    chunks.forEach((c, ci) => cues.push({
+      text: c.join(' '),
+      sent: si,
+      start: ci === 0,
+      end: ci === chunks.length - 1,
+    }));
+  });
+  return { cues: rebalanceEmphasis(cues), sentenceCount: sentences.length };
+}
+
+function chunkTextLines(raw) {
+  // For hand-authored (pasted) text: a line break is a hard cue
+  // boundary — the next line starts a new cue even if this line ends
+  // with a comma or no punctuation at all. Each line is chunked on its
+  // own; blank and bare-page-number lines are skipped. PDF text does
+  // NOT come through here: its line breaks are layout artifacts.
+  const cues = [];
+  let sentBase = 0;
+  for (const rawLine of stripStageDirections(raw).split(/\r?\n/)) {
+    const line = rawLine.replace(/\s+/g, ' ').trim();
+    if (!line) continue;
+    if (/^\d{1,4}$/.test(line)) continue;
+    const r = chunkText(line);
+    for (const c of r.cues) {
+      cues.push({ text: c.text, sent: sentBase + c.sent, start: c.start, end: c.end });
+    }
+    sentBase += r.sentenceCount;
+  }
+  return { cues, sentenceCount: sentBase };
+}
+/*CHUNK_END*/
+
+/* ================================================================
+   PDF text extraction (pdf.js)
+   ================================================================ */
+// The lite build ships without pdf.js — everything else works the same.
+const PDF_SUPPORT = typeof pdfjsLib !== 'undefined';
+if (PDF_SUPPORT) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(
+    new Blob([document.getElementById('pdfjs-worker-src').textContent],
+             { type: 'text/javascript' }));
+}
+
+async function extractLines(buf, onProgress) {
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const lines = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    if (onProgress) onProgress(p, pdf.numPages);
+    const page = await pdf.getPage(p);
+    const tc = await page.getTextContent();
+
+    // Italic runs in the PDF become *emphasis* markers. The italic flag
+    // lives on the font objects, which only load during operator-list
+    // parsing; if that fails we just extract plain text.
+    const italicFonts = {};
+    try {
+      await page.getOperatorList();
+      for (const it of tc.items) {
+        const fn = it.fontName;
+        if (fn && !(fn in italicFonts)) {
+          try {
+            const f = page.commonObjs.get(fn);
+            italicFonts[fn] = !!(f && (f.italic || /italic|oblique/i.test(f.name || '')));
+          } catch (e) { italicFonts[fn] = false; }
+        }
+      }
+    } catch (e) { /* no font info — plain extraction */ }
+
+    let line = '', lastY = null, lastEndX = null, lastH = 10;
+    let curItalic = false;
+    const closeEm = () => {
+      if (curItalic) { line = line.replace(/(\s*)$/, '*$1'); curItalic = false; }
+    };
+    const flush = () => { closeEm(); if (line.trim()) lines.push(line); line = ''; lastEndX = null; };
+    for (const it of tc.items) {
+      if (typeof it.str !== 'string') continue;
+      const tr = it.transform || [1, 0, 0, 1, 0, 0];
+      const x = tr[4], y = tr[5];
+      const h = Math.hypot(tr[2], tr[3]) || lastH;
+      if (lastY !== null && Math.abs(y - lastY) > h * 0.5) flush();
+      if (it.str) {
+        if (lastEndX !== null && line && !line.endsWith(' ') &&
+            !it.str.startsWith(' ') && x - lastEndX > h * 0.12) line += ' ';
+        // Whitespace-only items never toggle emphasis, so a stray
+        // italic space between plain words can't produce "* *".
+        if (it.str.trim() && !!italicFonts[it.fontName] !== curItalic) {
+          if (curItalic) closeEm();
+          else { line += '*'; curItalic = true; }
+        }
+        line += it.str;
+        lastEndX = x + (it.width || 0);
+        lastY = y;
+        lastH = h;
+      }
+      if (it.hasEOL) flush();
+    }
+    flush();
+    lines.push('');   // page boundary
+  }
+  return lines;
+}
+
+async function processPdfBuffer(buf, onProgress) {
+  const lines = await extractLines(buf, onProgress);
+  const text = assembleText(lines);
+  if (text.split(' ').filter(Boolean).length < 5) {
+    throw new Error('No readable text found in this PDF. If it is a scan, run it through OCR first.');
+  }
+  return chunkText(text);
+}
+
+/* ================================================================
+   State + persistence
+   ================================================================ */
+const LS = {
+  cues: 'subtitleTool.cues',
+  settings: 'subtitleTool.settings',
+  index: 'subtitleTool.index',
+  name: 'subtitleTool.name',
+};
+
+const DEFAULT_SETTINGS = {
+  size: 64,               // px on a 1080p-tall screen
+  posY: 82,               // vertical position of the text block, %
+  align: 'center',
+  color: '#ffffff',
+  bg: '#000000',
+};
+
+let cues = [];            // [{text, sent, start, end}]
+let scriptName = '';      // derived from the loaded file, used for export naming
+let index = -1;           // -1 = pre-show blank; cues.length = post-show blank
+let blanked = false;
+let settings = Object.assign({}, DEFAULT_SETTINGS);
+
+function saveAll() {
+  try {
+    localStorage.setItem(LS.cues, JSON.stringify(cues));
+    localStorage.setItem(LS.index, String(index));
+    localStorage.setItem(LS.settings, JSON.stringify(settings));
+    localStorage.setItem(LS.name, scriptName);
+  } catch (e) { /* storage unavailable — non-fatal */ }
+}
+function saveIndex() {
+  try { localStorage.setItem(LS.index, String(index)); } catch (e) {}
+}
+
+/* ================================================================
+   Output window
+   ================================================================ */
+let outWin = null;
+
+function openOutput() {
+  if (outWin && !outWin.closed) { outWin.focus(); return; }
+  outWin = window.open('', 'subtitle_output', 'width=960,height=540');
+  if (!outWin) {
+    toast('Pop-up blocked — allow pop-ups for this page, then try again.');
+    return;
+  }
+  const d = outWin.document;
+  d.open();
+  d.write('<!doctype html><html><head><meta charset="utf-8">' +
+    '<title>Subtitles — Output</title><style>' +
+    'html,body{margin:0;height:100%;overflow:hidden;cursor:none}' +
+    '#stage{position:fixed;inset:0}' +
+    '#text{position:absolute;left:4%;right:4%;margin:0;white-space:pre-wrap;' +
+    'transition:opacity .12s ease}' +
+    '</style></head><body><div id="stage"><p id="text"></p></div></body></html>');
+  d.close();
+  d.documentElement.addEventListener('dblclick', () => {
+    if (d.fullscreenElement) d.exitFullscreen();
+    else d.documentElement.requestFullscreen().catch(() => {});
+  });
+  d.addEventListener('keydown', handleKey);
+  outWin.addEventListener('resize', renderOutput);
+  renderOutput();
+}
+
+function currentCueText() {
+  if (blanked || index < 0 || index >= cues.length) return '';
+  return cues[index].text;
+}
+
+function styleStage(stageEl, textEl) {
+  const h = stageEl.clientHeight || 1;
+  stageEl.style.background = settings.bg;
+  textEl.style.color = settings.color;
+  textEl.style.fontSize = (settings.size * h / 1080) + 'px';
+  textEl.style.lineHeight = '1.25';
+  textEl.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  textEl.style.fontWeight = '600';
+  textEl.style.textAlign = settings.align;
+  textEl.style.top = settings.posY + '%';
+  textEl.style.transform = 'translateY(-' + settings.posY + '%)';
+}
+
+function renderOutput() {
+  if (!outWin || outWin.closed) return;
+  const d = outWin.document;
+  const stage = d.getElementById('stage');
+  const text = d.getElementById('text');
+  if (!stage || !text) return;
+  styleStage(stage, text);
+  const t = currentCueText();
+  if (text.dataset.cue !== t) {
+    text.dataset.cue = t;
+    text.style.opacity = '0';
+    setTimeout(() => { renderRichText(text, twoLineText(t)); text.style.opacity = '1'; }, 120);
+  }
+}
+
+/* ================================================================
+   Operator console rendering
+   ================================================================ */
+const $ = id => document.getElementById(id);
+
+// On the 16:9 stage a cue over 5 words is shown as two balanced lines
+// (a break after punctuation wins when it doesn't unbalance them).
+// With the 12-word cue maximum, a line never exceeds 6 words.
+function twoLineText(text) {
+  const words = String(text).split(' ').filter(Boolean);
+  const n = words.length;
+  if (n <= 5) return words.join(' ');
+  const mid = Math.ceil(n / 2);
+  const maxSide = Math.max(mid, 5);
+  let best = mid, bestScore = -Infinity;
+  for (let c = mid - 1; c <= mid + 1; c++) {
+    if (c < 1 || c >= n || Math.max(c, n - c) > maxSide) continue;
+    let score = -Math.abs(c - mid) * 2;
+    if (/[,;:—–?!]["'”’)\]»]*$/.test(words[c - 1])) score += 3;
+    if (score > bestScore) { bestScore = score; best = c; }
+  }
+  return words.slice(0, best).join(' ') + '\n' + words.slice(best).join(' ');
+}
+
+// Cue text may carry *emphasis* markers; render them as italics.
+// An unpaired asterisk stays visible as a literal character.
+function renderRichText(el, text) {
+  el.textContent = '';
+  const parts = String(text).split(/\*([^*]+)\*/);
+  parts.forEach((p, i) => {
+    if (!p) return;
+    if (i % 2) {
+      const em = document.createElement('em');
+      em.textContent = p;
+      el.appendChild(em);
+    } else {
+      el.appendChild(document.createTextNode(p));
+    }
+  });
+}
+
+function renderPreview() {
+  styleStage($('preview'), $('previewText'));
+  renderRichText($('previewText'), twoLineText(currentCueText()));
+  $('blankBadge').classList.toggle('on', blanked);
+}
+
+function renderNowNext() {
+  const mMark = () => {
+    const m = document.createElement('span');
+    m.className = 'mlink';
+    m.textContent = '♪';
+    return m;
+  };
+  if (index + 1 < cues.length) {
+    renderRichText($('nextText'), cues[index + 1].text);
+    if (subtitleHasMusic(index + 1)) $('nextText').appendChild(mMark());
+  } else {
+    $('nextText').textContent = '· end of script ·';
+  }
+  const list = $('thenList');
+  list.innerHTML = '';
+  for (let i = index + 2; i <= index + 4 && i < cues.length; i++) {
+    const row = document.createElement('div');
+    row.className = 'thenRow';
+    const n = document.createElement('span');
+    n.className = 'n';
+    n.textContent = i + 1;
+    const s = document.createElement('span');
+    renderRichText(s, cues[i].text);
+    if (subtitleHasMusic(i)) s.appendChild(mMark());
+    row.appendChild(n);
+    row.appendChild(s);
+    list.appendChild(row);
+  }
+  if (!list.children.length) {
+    const row = document.createElement('div');
+    row.className = 'thenRow';
+    row.textContent = '·';
+    list.appendChild(row);
+  }
+  $('cueCounter').textContent = (index < 0 ? '—' : Math.min(index + 1, cues.length)) +
+                                ' / ' + cues.length + ' cues';
+}
+
+function renderListHighlight() {
+  const prevSel = document.querySelector('.cueItem.current');
+  if (prevSel) prevSel.classList.remove('current');
+  if (index >= 0 && index < cues.length) {
+    const el = document.querySelector('.cueItem[data-i="' + index + '"]');
+    if (el) {
+      el.classList.add('current');
+      el.scrollIntoView({ block: 'nearest' });
+    }
+  }
+}
+
+function renderAll() {
+  renderPreview();
+  renderNowNext();
+  renderListHighlight();
+  renderOutput();
+}
+
+function buildCueList() {
+  const list = $('cueList');
+  list.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  cues.forEach((c, i) => {
+    const item = document.createElement('div');
+    item.className = 'cueItem' + (c.start && i > 0 ? ' sentStart' : '');
+    item.dataset.i = i;
+    const num = document.createElement('span');
+    num.className = 'num';
+    num.textContent = i + 1;
+    const txt = document.createElement('span');
+    txt.className = 'txt';
+    if (!c.start) {
+      const cont = document.createElement('span');
+      cont.className = 'cont';
+      cont.textContent = '↳ ';
+      txt.appendChild(cont);
+    }
+    const body = document.createElement('span');
+    body.className = 'ctext';
+    renderRichText(body, c.text);
+    txt.appendChild(body);
+    if (subtitleHasMusic(i)) {
+      const m = document.createElement('span');
+      m.className = 'mlink';
+      m.textContent = '♪';
+      m.title = musicCues.filter(mc => mc.linkCue === i)
+        .map(mc => mc.name + (mc.linkMode === 'remind' ? ' (remind)' : ' (auto)')).join(', ');
+      txt.appendChild(m);
+    }
+    const add = document.createElement('button');
+    add.className = 'add';
+    add.textContent = '+';
+    add.title = 'Insert a new cue after this one';
+    add.tabIndex = -1;
+    add.addEventListener('click', e => { e.stopPropagation(); insertCue(i); });
+    const del = document.createElement('button');
+    del.className = 'del';
+    del.textContent = '×';
+    del.title = 'Delete this cue';
+    del.tabIndex = -1;
+    del.addEventListener('click', e => { e.stopPropagation(); deleteCue(i); });
+    item.appendChild(num);
+    item.appendChild(txt);
+    item.appendChild(add);
+    item.appendChild(del);
+    item.addEventListener('click', () => { goTo(i); });
+    item.addEventListener('dblclick', e => { e.stopPropagation(); editCue(i, item, txt); });
+    frag.appendChild(item);
+  });
+  const addEnd = document.createElement('div');
+  addEnd.id = 'addEndRow';
+  addEnd.textContent = '＋ Add cue at end';
+  addEnd.addEventListener('click', () => insertCue(cues.length - 1));
+  frag.appendChild(addEnd);
+  list.appendChild(frag);
+}
+
+function deleteCue(i, silent) {
+  // silent = internal cleanup (abandoned empty insert) — no dialog, no toast
+  if (!silent) {
+    const preview = cues[i].text.length > 60 ? cues[i].text.slice(0, 60) + '…' : cues[i].text;
+    if (!confirm('Delete cue ' + (i + 1) + ': “' + preview + '”?\n(Undo is available for a few seconds afterwards.)')) return;
+  }
+  const removed = cues[i];
+  const wasIndex = index;
+  cues.splice(i, 1);
+  if (index > i) index--;
+  index = Math.max(-1, Math.min(cues.length, index));
+  const linkBackup = [];   // music cues whose link pointed at the deleted line
+  musicCues.forEach(mc => {
+    if (mc.linkCue == null) return;
+    if (mc.linkCue === i) { linkBackup.push(mc); mc.linkCue = null; }
+    else if (mc.linkCue > i) mc.linkCue--;
+  });
+  saveMusic();
+  renderMusic();
+  buildCueList();
+  saveAll();
+  renderAll();
+  if (!silent) {
+    const label = removed.text.length > 40 ? removed.text.slice(0, 40) + '…' : removed.text;
+    toast('Deleted: “' + label + '”' +
+          (linkBackup.length ? ' (music link cleared)' : ''), {
+      label: 'Undo',
+      fn: () => {
+        cues.splice(i, 0, removed);
+        index = Math.max(-1, Math.min(cues.length, wasIndex));
+        musicCues.forEach(mc => { if (mc.linkCue != null && mc.linkCue >= i) mc.linkCue++; });
+        linkBackup.forEach(mc => { mc.linkCue = i; });
+        saveMusic();
+        renderMusic();
+        buildCueList();
+        saveAll();
+        renderAll();
+      },
+    });
+  }
+}
+
+function insertCue(i) {
+  // Insert an empty cue after index i and open it for editing;
+  // if it is left empty, it removes itself.
+  setRightTab('cues');   // the editor lives in the Cues tab
+  cues.splice(i + 1, 0, { text: '', sent: -1, start: true, end: true });
+  if (index > i) index++;
+  let linksMoved = false;
+  musicCues.forEach(mc => {
+    if (mc.linkCue != null && mc.linkCue > i) { mc.linkCue++; linksMoved = true; }
+  });
+  if (linksMoved) saveMusic();
+  buildCueList();
+  saveAll();
+  renderAll();
+  const item = document.querySelector('.cueItem[data-i="' + (i + 1) + '"]');
+  if (item) {
+    item.scrollIntoView({ block: 'nearest' });
+    editCue(i + 1, item, item.querySelector('.txt'));
+  }
+}
+
+function editCue(i, item, txtEl) {
+  if (item.querySelector('textarea')) return;
+  const ta = document.createElement('textarea');
+  ta.value = cues[i].text;
+  ta.placeholder = 'Type the cue text…';
+  ta.rows = 2;
+  txtEl.style.display = 'none';
+  item.appendChild(ta);
+  ta.focus();
+  ta.select();
+  let done = false;
+  const finish = save => {
+    if (done) return;
+    done = true;
+    if (save) {
+      const v = ta.value.replace(/\s+/g, ' ').trim();
+      if (v) cues[i].text = v;
+    }
+    if (!cues[i].text) {          // freshly inserted cue left empty
+      deleteCue(i, true);
+      return;
+    }
+    saveAll();
+    ta.remove();
+    txtEl.style.display = '';
+    renderRichText(txtEl.querySelector('.ctext'), cues[i].text);
+    renderAll();
+  };
+  ta.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); finish(true); }
+    if (e.key === 'Escape') finish(false);
+  });
+  ta.addEventListener('blur', () => finish(true));
+}
+
+/* ================================================================
+   Navigation
+   ================================================================ */
+function goTo(i) {
+  const prev = index;
+  index = Math.max(-1, Math.min(cues.length, i));
+  saveIndex();
+  renderAll();
+  // Music links trigger only on a single forward step — jumps and
+  // backtracking (corrections, recovery) never fire audio.
+  if (index === prev + 1 && index >= 0 && index < cues.length) {
+    checkMusicTriggers(index);
+  }
+}
+function next() { goTo(index + 1); }
+function prev() { goTo(index - 1); }
+function exportCues() {
+  const payload = {
+    version: 2,
+    name: scriptName || (appMode === 'music' ? 'music-cues' : 'subtitles'),
+    exported: new Date().toISOString(),
+    cues: cues,
+    settings: settings,
+    music: {
+      cues: musicCues.map(c => { const o = Object.assign({}, c); delete o.hasAudio; return o; }),
+      standby: musicStandby,
+      master: masterVol,
+    },
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (scriptName || (appMode === 'music' ? 'music-cues' : 'subtitles')) + '.cues.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast('Exported ' + cues.length + ' cues (with styling) — load the .json on any machine');
+}
+
+function toggleBlank() {
+  blanked = !blanked;
+  $('blankBtn').classList.toggle('on', blanked);
+  $('blankBtn').textContent = blanked ? 'Unblank' : 'Blank';
+  renderAll();
+}
+
+function handleKey(e) {
+  const t = e.target;
+  if (t && t.matches && t.matches('textarea, input, select')) return;
+  if (!$('console').classList.contains('active')) return;
+  switch (e.key) {
+    case ' ': case 'ArrowRight': case 'ArrowDown': case 'PageDown':
+      e.preventDefault(); next(); break;
+    case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
+      e.preventDefault(); prev(); break;
+    case 'b': case 'B': case '.':
+      e.preventDefault(); toggleBlank(); break;
+    case 'n': case 'N':
+      e.preventDefault(); insertCue(Math.min(index, cues.length - 1)); break;
+    case 'Home': e.preventDefault(); goTo(-1); break;
+    case 'End': e.preventDefault(); goTo(cues.length - 1); break;
+    case 'Enter': if (appMode !== 'subtitles') { e.preventDefault(); goMusic(); } break;
+    case 's': case 'S': if (appMode !== 'subtitles') { e.preventDefault(); fadeCurrentMusic(); } break;
+    case 'x': case 'X': if (appMode !== 'subtitles') { e.preventDefault(); panicMusic(); } break;
+    case 'p': case 'P': if (appMode !== 'subtitles') { e.preventDefault(); pauseResumeMusic(); } break;
+  }
+}
+
+/* ================================================================
+   Style controls
+   ================================================================ */
+function applySettingsToControls() {
+  $('sizeCtl').value = settings.size;
+  $('sizeVal').textContent = settings.size + 'px';
+  $('posCtl').value = settings.posY;
+  $('posVal').textContent = settings.posY + '%';
+  $('colorCtl').value = settings.color;
+  $('bgCtl').value = settings.bg;
+  document.querySelectorAll('.alignBtns button').forEach(b =>
+    b.classList.toggle('sel', b.dataset.align === settings.align));
+}
+
+function bindControls() {
+  $('sizeCtl').addEventListener('input', e => {
+    settings.size = +e.target.value;
+    $('sizeVal').textContent = settings.size + 'px';
+    saveAll(); renderPreview(); renderOutput();
+  });
+  $('posCtl').addEventListener('input', e => {
+    settings.posY = +e.target.value;
+    $('posVal').textContent = settings.posY + '%';
+    saveAll(); renderPreview(); renderOutput();
+  });
+  $('colorCtl').addEventListener('input', e => {
+    settings.color = e.target.value; saveAll(); renderPreview(); renderOutput();
+  });
+  $('bgCtl').addEventListener('input', e => {
+    settings.bg = e.target.value; saveAll(); renderPreview(); renderOutput();
+  });
+  document.querySelectorAll('.alignBtns button').forEach(b =>
+    b.addEventListener('click', () => {
+      settings.align = b.dataset.align;
+      applySettingsToControls();
+      saveAll(); renderPreview(); renderOutput();
+    }));
+
+  $('prevBtn').addEventListener('click', () => { prev(); document.activeElement.blur(); });
+  $('nextBtn').addEventListener('click', () => { next(); document.activeElement.blur(); });
+  $('blankBtn').addEventListener('click', () => { toggleBlank(); document.activeElement.blur(); });
+  $('openOutputBtn').addEventListener('click', openOutput);
+  $('exportBtn').addEventListener('click', () => { exportCues(); document.activeElement.blur(); });
+  $('modeCtl').addEventListener('change', e => {
+    appMode = e.target.value;
+    applyMode();
+    document.activeElement.blur();
+  });
+  $('uiScaleCtl').addEventListener('change', e => {
+    uiScale = parseInt(e.target.value, 10) || 100;
+    applyUiScale();
+    document.activeElement.blur();
+  });
+  // Non-destructive: the current show stays in storage until a new
+  // script actually loads; the load screen has a "back" button.
+  $('newPdfBtn').addEventListener('click', showLoadScreen);
+
+  document.addEventListener('keydown', handleKey);
+  window.addEventListener('resize', renderPreview);
+
+  setInterval(() => {
+    const live = outWin && !outWin.closed;
+    $('outputDot').classList.toggle('live', !!live);
+    $('outputBtnLabel').textContent = live ? 'Output live' : 'Open output window';
+  }, 800);
+}
+
+/* ================================================================
+   Music cues — separate GO stack. Layers: firing a 'music' cue
+   crossfades the playing music; 'sfx' cues stack on top. Audio blobs
+   live in IndexedDB so the show survives a restart.
+   ================================================================ */
+const MUSIC_LS = 'subtitleTool.music';
+
+let musicCues = [];    // {id,name,fileName,layer,volume,fadeIn,fadeOut,loop,
+                       //  startAt,endAt,followMode,followDelay,duration,hasAudio}
+let musicStandby = 0;  // next cue GO will fire
+let masterVol = 1;
+let musicUid = 1;
+let players = [];      // {cue,a,vol,target,rate,paused,followTimer,row,...}
+const urlCache = new Map();
+
+function migrateMusicCues() {
+  // Older cues had layer 'music'|'sfx'; groups supersede that.
+  musicCues.forEach(c => {
+    if (!c.group) c.group = (c.layer === 'sfx') ? 'stack' : 'A';
+    delete c.layer;
+  });
+}
+
+function saveMusic() {
+  try {
+    localStorage.setItem(MUSIC_LS, JSON.stringify({
+      cues: musicCues.map(c => { const o = Object.assign({}, c); delete o.hasAudio; return o; }),
+      standby: musicStandby, master: masterVol, uid: musicUid,
+    }));
+  } catch (e) {}
+}
+
+// ---------- IndexedDB audio store ----------
+function idb() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('subtitleConsoleAudio', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('audio');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+function idbReq(mode, fn) {
+  return idb().then(db => new Promise((res, rej) => {
+    const rq = fn(db.transaction('audio', mode).objectStore('audio'));
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => rej(rq.error);
+  }));
+}
+const audioPut = (k, b) => idbReq('readwrite', s => s.put(b, k));
+const audioGet = k => idbReq('readonly', s => s.get(k));
+const audioDel = k => idbReq('readwrite', s => s.delete(k));
+const audioKeys = () => idbReq('readonly', s => s.getAllKeys());
+const audioClear = () => idbReq('readwrite', s => s.clear());
+
+async function cueUrl(cue) {
+  if (urlCache.has(cue.id)) return urlCache.get(cue.id);
+  const blob = await audioGet('a' + cue.id);
+  if (!blob) return null;
+  const u = URL.createObjectURL(blob);
+  urlCache.set(cue.id, u);
+  return u;
+}
+
+function prewarmAudio() {
+  // Resolve object URLs ahead of time so GO is instant — the first
+  // IndexedDB read after a page load can otherwise take a moment.
+  musicCues.forEach(c => { if (c.hasAudio) cueUrl(c).catch(() => {}); });
+}
+
+// ---------- adding tracks ----------
+async function addAudioFiles(files) {
+  let added = 0;
+  for (const f of files) {
+    if (!/^audio\//.test(f.type || '') &&
+        !/\.(mp3|m4a|aac|wav|ogg|oga|flac|webm)$/i.test(f.name)) continue;
+    const orphan = musicCues.find(c => !c.hasAudio && c.fileName === f.name);
+    const cue = orphan || {
+      id: musicUid++, name: f.name.replace(/\.[^.]+$/, ''), fileName: f.name,
+      group: 'A', volume: 1, fadeIn: 0, fadeOut: 2, loop: false,
+      startAt: 0, endAt: null, followMode: 'none', followDelay: 3,
+      linkCue: null, linkMode: 'auto', duck: null,
+      duration: null,
+    };
+    try { await audioPut('a' + cue.id, f); } catch (e) {
+      toast('Could not store audio (browser storage unavailable)');
+      continue;
+    }
+    cue.hasAudio = true;
+    if (urlCache.has(cue.id)) { URL.revokeObjectURL(urlCache.get(cue.id)); urlCache.delete(cue.id); }
+    if (!orphan) musicCues.push(cue);
+    try {
+      const probe = new Audio(await cueUrl(cue));
+      await new Promise(res => {
+        probe.onloadedmetadata = res; probe.onerror = res; setTimeout(res, 3000);
+      });
+      if (isFinite(probe.duration) && probe.duration > 0) cue.duration = probe.duration;
+    } catch (e) {}
+    added++;
+  }
+  saveMusic();
+  renderMusic();
+  if (added) toast(added + ' track' + (added > 1 ? 's' : '') + ' added');
+  else toast('No audio files recognised');
+}
+
+// ---------- screen wake lock ----------
+// A phone must not sleep while show audio is running.
+let wakeLock = null;
+async function updateWakeLock() {
+  const want = players.length > 0;
+  try {
+    if (want && !wakeLock && 'wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } else if (!want && wakeLock) {
+      const wl = wakeLock;
+      wakeLock = null;
+      await wl.release();
+    }
+  } catch (e) { wakeLock = null; }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') updateWakeLock();
+});
+
+// ---------- playback engine ----------
+let fadeTimer = null;
+function ensureFadeLoop() {
+  if (fadeTimer) return;
+  fadeTimer = setInterval(() => {
+    for (const p of players.slice()) {
+      if (p.paused) continue;
+      if (p.vol !== p.target) {
+        const step = p.rate * 0.05;
+        p.vol = p.vol < p.target ? Math.min(p.target, p.vol + step)
+                                 : Math.max(p.target, p.vol - step);
+      }
+      p.a.volume = Math.max(0, Math.min(1, p.vol * masterVol));
+      if (p.vol === 0 && p.target === 0) { removePlayer(p); continue; }
+      const c = p.cue;
+      if (c.endAt && p.a.currentTime >= c.endAt) {
+        if (c.loop) p.a.currentTime = c.startAt || 0;
+        else playerEnded(p);
+      }
+    }
+    renderPlayers();
+    if (!players.length) { clearInterval(fadeTimer); fadeTimer = null; }
+  }, 50);
+}
+
+function setFade(p, target, seconds) {
+  p.target = target;
+  const dist = Math.abs(target - p.vol);
+  p.rate = seconds > 0.01 ? dist / seconds : 1000;
+  if (target === 0) releaseDucks(p);   // a dying cue lets go of its ducking
+  ensureFadeLoop();
+}
+
+// Ducking: a cue with `duck` set pulls every already-playing track down
+// to that absolute level while it sounds; they rise back when it goes.
+function releaseDucks(ducker) {
+  players.forEach(o => {
+    if (!o.duckMap || !o.duckMap.has(ducker)) return;
+    o.duckMap.delete(ducker);
+    if (o.target > 0 && o.duckBase != null) {
+      if (o.duckMap.size) {
+        setFade(o, Math.min(o.duckBase, ...o.duckMap.values()), 1.5);
+      } else {
+        const base = o.duckBase;
+        o.duckBase = null;
+        setFade(o, base, 1.5);
+      }
+    } else if (!o.duckMap.size) {
+      o.duckBase = null;
+    }
+  });
+}
+
+function applyDuck(ducker) {
+  const level = ducker.cue.duck;
+  players.forEach(o => {
+    if (o === ducker || o.target <= 0) return;
+    if (!o.duckMap) o.duckMap = new Map();
+    if (o.duckBase == null) o.duckBase = o.target;
+    o.duckMap.set(ducker, level);
+    setFade(o, Math.min(o.duckBase, ...o.duckMap.values()), 1);
+  });
+}
+
+function removePlayer(p) {
+  try { p.a.pause(); } catch (e) {}
+  if (p.followTimer) clearTimeout(p.followTimer);
+  releaseDucks(p);
+  p.a.removeAttribute('src');
+  if (p.row) p.row.remove();
+  players = players.filter(x => x !== p);
+  renderPlayers();
+  updateWakeLock();
+}
+
+function playerEnded(p) {
+  const followNext = p.cue.followMode === 'end';
+  removePlayer(p);
+  if (followNext) goMusic(true);
+}
+
+async function fireMusicCue(i) {
+  const cue = musicCues[i];
+  if (!cue) return;
+  if (!cue.hasAudio) { toast('“' + cue.name + '” has no audio loaded'); return; }
+  const url = await cueUrl(cue);
+  if (!url) {
+    cue.hasAudio = false;
+    renderMusic();
+    toast('Audio missing for “' + cue.name + '”');
+    return;
+  }
+  // A cue replaces (crossfades) only its own group; 'stack' cues and
+  // other groups keep sounding — this is how beds run in parallel.
+  if (cue.group !== 'stack') {
+    players.filter(p => p.cue.group === cue.group && p.target > 0)
+           .forEach(p => setFade(p, 0, Math.max(0.05, p.cue.fadeOut)));
+  }
+  const a = new Audio(url);
+  a.loop = !!cue.loop && !cue.endAt;
+  const p = {
+    cue, a,
+    vol: cue.fadeIn > 0 ? 0 : cue.volume,
+    target: cue.volume, rate: 1000,
+    paused: false, followTimer: null, row: null,
+  };
+  a.volume = Math.max(0, Math.min(1, p.vol * masterVol));
+  if (cue.startAt) {
+    try { a.currentTime = cue.startAt; } catch (e) {}
+    a.addEventListener('loadedmetadata', () => {
+      try { if (a.currentTime < cue.startAt) a.currentTime = cue.startAt; } catch (e) {}
+    });
+  }
+  a.addEventListener('ended', () => playerEnded(p));
+  players.push(p);
+  try { await a.play(); } catch (e) {
+    removePlayer(p);
+    toast('Playback failed: ' + (e && e.message ? e.message : e));
+    return;
+  }
+  if (cue.fadeIn > 0) setFade(p, cue.volume, cue.fadeIn);
+  else ensureFadeLoop();
+  if (cue.duck != null) applyDuck(p);
+  if (alertCueId === cue.id) hideMusicAlert();
+  updateWakeLock();
+  if (cue.followMode === 'delay') {
+    p.followTimer = setTimeout(() => {
+      p.followTimer = null;
+      goMusic(true);
+    }, Math.max(0, cue.followDelay || 0) * 1000);
+  } else if (cue.followMode === 'with') {
+    goMusic(true);   // simultaneous start: one GO launches both
+  }
+  renderMusic();
+}
+
+/* ---------- subtitle-linked triggers ---------- */
+let alertCueId = null;
+
+function showMusicAlert(cue, i) {
+  alertCueId = cue.id;
+  const el = $('musicAlert');
+  el.innerHTML = '';
+  el.appendChild(document.createTextNode('♪ Music due: ' + (i + 1) + '. ' + cue.name + ' — '));
+  const play = document.createElement('button');
+  play.textContent = 'Play (⏎)';
+  play.className = 'primary';
+  play.tabIndex = -1;
+  play.addEventListener('click', e => {
+    e.stopPropagation();
+    goMusic();
+    document.activeElement.blur();
+  });
+  const x = document.createElement('button');
+  x.textContent = '×';
+  x.title = 'Dismiss';
+  x.tabIndex = -1;
+  x.addEventListener('click', e => { e.stopPropagation(); hideMusicAlert(); });
+  el.append(play, x);
+  el.classList.add('on');
+}
+
+function hideMusicAlert() {
+  alertCueId = null;
+  $('musicAlert').classList.remove('on');
+}
+
+function subtitleHasMusic(subIdx) {
+  return musicCues.some(c => c.linkCue === subIdx);
+}
+
+function checkMusicTriggers(subIdx) {
+  // Called only on a single forward step onto a subtitle cue.
+  if (appMode === 'subtitles') return;
+  const hits = musicCues
+    .map((c, i) => ({ c, i }))
+    .filter(x => x.c.linkCue === subIdx && x.c.hasAudio !== false)
+    .filter(x => !players.some(p => p.cue.id === x.c.id));  // already sounding
+  if (!hits.length) return;
+  const autos = hits.filter(x => x.c.linkMode !== 'remind');
+  const reminds = hits.filter(x => x.c.linkMode === 'remind');
+  autos.forEach(x => {
+    musicStandby = x.i;
+    goMusic(true);
+  });
+  if (reminds.length) {
+    const first = reminds[0];
+    musicStandby = first.i;
+    saveMusic();
+    renderMusic();
+    showMusicAlert(first.c, first.i);
+  }
+}
+
+function cancelFollows() {
+  players.forEach(p => {
+    if (p.followTimer) { clearTimeout(p.followTimer); p.followTimer = null; }
+  });
+}
+
+function goMusic(fromFollow) {
+  if (musicStandby >= musicCues.length) {
+    if (!fromFollow) toast('End of music stack');
+    return;
+  }
+  if (!fromFollow) cancelFollows();
+  const i = musicStandby;
+  musicStandby = Math.min(musicCues.length, musicStandby + 1);
+  saveMusic();
+  renderMusic();          // standby display updates even before audio spins up
+  fireMusicCue(i);
+}
+
+function fadeCurrentMusic() {
+  cancelFollows();
+  players.filter(p => p.cue.group !== 'stack' && p.target > 0)
+         .forEach(p => setFade(p, 0, Math.max(0.05, p.cue.fadeOut)));
+}
+
+let lastPanic = 0;
+function panicMusic() {
+  cancelFollows();
+  hideMusicAlert();
+  const hard = Date.now() - lastPanic < 700;
+  lastPanic = Date.now();
+  players.slice().forEach(p => { if (hard) removePlayer(p); else setFade(p, 0, 1); });
+}
+
+function pauseResumeMusic() {
+  if (!players.length) return;
+  const anyPlaying = players.some(p => !p.paused);
+  players.forEach(p => {
+    if (anyPlaying) { p.paused = true; p.a.pause(); }
+    else { p.paused = false; p.a.play().catch(() => {}); }
+  });
+  ensureFadeLoop();
+  renderPlayers();
+}
+
+/* ---------- music UI ---------- */
+function fmtTime(s) {
+  if (s == null || !isFinite(s)) return '–:––';
+  s = Math.max(0, Math.floor(s));
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+
+function musicCueSummary(c) {
+  const bits = [Math.round(c.volume * 100) + '%'];
+  if (c.duck != null) bits.push('ducks→' + Math.round(c.duck * 100) + '%');
+  if (c.fadeIn) bits.push('in ' + c.fadeIn + 's');
+  bits.push('out ' + c.fadeOut + 's');
+  if (c.loop) bits.push('loop');
+  if (c.startAt || c.endAt) {
+    bits.push(fmtTime(c.startAt || 0) + '→' + (c.endAt ? fmtTime(c.endAt) : 'end'));
+  }
+  if (c.followMode === 'delay') bits.push('follow +' + c.followDelay + 's');
+  if (c.followMode === 'end') bits.push('follow @end');
+  if (c.followMode === 'with') bits.push('with next');
+  if (c.linkCue != null) {
+    bits.push('♪ line ' + (c.linkCue + 1) + (c.linkMode === 'remind' ? ' remind' : ' auto'));
+  }
+  return bits.join(' · ');
+}
+
+function renderPlayers() {
+  const box = $('playersBox');
+  players.forEach(p => {
+    if (!p.row) {
+      const row = document.createElement('div');
+      row.className = 'playerRow';
+      const name = document.createElement('span');
+      name.className = 'pname';
+      name.textContent = (p.cue.group === 'stack' ? '⚡ ' : '♪' + p.cue.group + ' ') + p.cue.name;
+      p.timeEl = document.createElement('span');
+      p.timeEl.className = 'ptime';
+      p.stateEl = document.createElement('span');
+      p.stateEl.className = 'pstate';
+      const fade = document.createElement('button');
+      fade.textContent = 'Fade';
+      fade.tabIndex = -1;
+      fade.addEventListener('click', () => setFade(p, 0, Math.max(0.05, p.cue.fadeOut)));
+      const stop = document.createElement('button');
+      stop.textContent = '×';
+      stop.title = 'Stop now';
+      stop.tabIndex = -1;
+      stop.addEventListener('click', () => removePlayer(p));
+      row.append(name, p.timeEl, p.stateEl, fade, stop);
+      p.row = row;
+      box.appendChild(row);
+    }
+    const total = p.cue.endAt || p.a.duration || p.cue.duration;
+    p.timeEl.textContent = fmtTime(p.a.currentTime) + ' / ' + fmtTime(total);
+    p.stateEl.textContent = p.paused ? 'paused'
+      : (p.target === 0 ? 'fading out' : (p.vol < p.target ? 'fading in' : ''));
+  });
+  $('tabMusic').classList.toggle('live', players.length > 0);
+}
+
+function renderMusicStandby() {
+  const el = $('musicStandbyLine');
+  const next = musicCues[musicStandby];
+  if (!musicCues.length) {
+    el.innerHTML = 'No music cues yet — add audio tracks below.';
+  } else if (!next) {
+    el.textContent = 'End of music stack.';
+  } else {
+    el.textContent = '';
+    el.appendChild(document.createTextNode('standby → '));
+    const s = document.createElement('strong');
+    s.textContent = (musicStandby + 1) + '. ' + next.name;
+    el.appendChild(s);
+    el.appendChild(document.createTextNode(
+      next.group === 'stack' ? '  (stack)' : (next.group !== 'A' ? '  (group ' + next.group + ')' : '')));
+  }
+}
+
+let musicEditorOpenId = null;
+
+function renderMusicList() {
+  const list = $('musicList');
+  list.innerHTML = '';
+  musicCues.forEach((c, i) => {
+    const row = document.createElement('div');
+    row.className = 'mcueRow' + (i === musicStandby ? ' standby' : '');
+    const num = document.createElement('span');
+    num.className = 'num';
+    num.textContent = i + 1;
+    const name = document.createElement('span');
+    name.className = 'mname';
+    name.textContent = c.name;
+    const badge = document.createElement('span');
+    badge.className = 'badge' + (c.group === 'stack' ? ' sfx' : '');
+    badge.textContent = c.group === 'stack' ? 'stack' : 'grp ' + c.group;
+    const sum = document.createElement('span');
+    sum.className = 'sum';
+    sum.textContent = musicCueSummary(c);
+    row.append(num, name, badge, sum);
+    if (!c.hasAudio) {
+      const warn = document.createElement('span');
+      warn.className = 'badge warn';
+      warn.textContent = '⚠ no audio';
+      row.appendChild(warn);
+    }
+    const mkBtn = (label, title, fn) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.title = title;
+      b.tabIndex = -1;
+      b.addEventListener('click', e => { e.stopPropagation(); fn(); });
+      return b;
+    };
+    row.appendChild(mkBtn('▲', 'Move up', () => moveMusicCue(i, -1)));
+    row.appendChild(mkBtn('▼', 'Move down', () => moveMusicCue(i, 1)));
+    row.appendChild(mkBtn('✎', 'Edit settings', () => {
+      musicEditorOpenId = musicEditorOpenId === c.id ? null : c.id;
+      renderMusicList();
+    }));
+    const delBtn = mkBtn('×', 'Delete cue (undoable)', () => deleteMusicCue(i));
+    delBtn.classList.add('mdel');
+    row.appendChild(delBtn);
+    row.addEventListener('click', () => {
+      musicStandby = i;
+      saveMusic();
+      renderMusic();
+    });
+    row.addEventListener('dblclick', () => {
+      musicEditorOpenId = c.id;
+      renderMusicList();
+    });
+    list.appendChild(row);
+    if (musicEditorOpenId === c.id) list.appendChild(buildMusicEditor(c));
+  });
+}
+
+function buildMusicEditor(c) {
+  const ed = document.createElement('div');
+  ed.className = 'mEditor';
+  const field = (labelText, input, wide) => {
+    const l = document.createElement('label');
+    if (wide) l.className = 'mWide';
+    l.appendChild(document.createTextNode(labelText));
+    l.appendChild(input);
+    return l;
+  };
+  const num = (val, step, min) => {
+    const i = document.createElement('input');
+    i.type = 'number';
+    i.step = step;
+    i.min = min != null ? min : 0;
+    i.value = val != null ? val : '';
+    return i;
+  };
+  const name = document.createElement('input');
+  name.type = 'text';
+  name.value = c.name;
+  name.addEventListener('input', () => { c.name = name.value; });
+  const grp = document.createElement('select');
+  [['A', 'A — main (crossfades within A)'], ['B', 'B — bed (independent)'],
+   ['C', 'C — bed (independent)'], ['D', 'D — bed (independent)'],
+   ['stack', 'stack — plays on top, never replaced']]
+    .forEach(([v, t]) => {
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = t;
+      grp.appendChild(o);
+    });
+  grp.value = c.group || 'A';
+  grp.addEventListener('change', () => { c.group = grp.value; });
+  const vol = num(Math.round(c.volume * 100), 5, 0);
+  vol.max = 100;
+  vol.addEventListener('input', () => { c.volume = Math.max(0, Math.min(1, (+vol.value || 0) / 100)); });
+  const duck = num(c.duck != null ? Math.round(c.duck * 100) : null, 5, 0);
+  duck.max = 100;
+  duck.placeholder = 'no ducking';
+  duck.addEventListener('input', () => {
+    c.duck = duck.value === '' ? null : Math.max(0, Math.min(1, (+duck.value || 0) / 100));
+  });
+  const fin = num(c.fadeIn, 0.5);
+  fin.addEventListener('input', () => { c.fadeIn = Math.max(0, +fin.value || 0); });
+  const fout = num(c.fadeOut, 0.5);
+  fout.addEventListener('input', () => { c.fadeOut = Math.max(0, +fout.value || 0); });
+  const st = num(c.startAt, 0.5);
+  st.addEventListener('input', () => { c.startAt = Math.max(0, +st.value || 0); });
+  const en = num(c.endAt, 0.5);
+  en.placeholder = 'track end';
+  en.addEventListener('input', () => { c.endAt = en.value === '' ? null : Math.max(0, +en.value || 0); });
+  const loop = document.createElement('input');
+  loop.type = 'checkbox';
+  loop.checked = c.loop;
+  loop.addEventListener('change', () => { c.loop = loop.checked; });
+  const loopWrap = document.createElement('label');
+  loopWrap.className = 'mChk';
+  loopWrap.append(loop, document.createTextNode('loop'));
+  const follow = document.createElement('select');
+  [['none', 'do nothing — next cue waits for GO'],
+   ['with', 'also start the NEXT cue at the same time'],
+   ['delay', 'start the NEXT cue after a delay'],
+   ['end', 'start the NEXT cue when this track ends']]
+    .forEach(([v, t]) => {
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = t;
+      follow.appendChild(o);
+    });
+  follow.value = c.followMode;
+  follow.addEventListener('change', () => { c.followMode = follow.value; });
+  const fdelay = num(c.followDelay, 0.5);
+  fdelay.addEventListener('input', () => { c.followDelay = Math.max(0, +fdelay.value || 0); });
+
+  // Subtitle link: fire (or remind) when that line is stepped onto.
+  const link = num(c.linkCue != null ? c.linkCue + 1 : null, 1, 1);
+  link.max = cues.length;
+  link.placeholder = 'none';
+  const snippet = document.createElement('span');
+  snippet.style.cssText = 'font-size:11px;color:var(--dim);font-style:italic;' +
+    'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+  const updateSnippet = () => {
+    const sc = c.linkCue != null && cues[c.linkCue];
+    snippet.textContent = sc ? '“' + sc.text.slice(0, 48) + (sc.text.length > 48 ? '…' : '') + '”'
+                             : (c.linkCue != null ? '(no such subtitle cue)' : '');
+  };
+  link.addEventListener('input', () => {
+    const v = parseInt(link.value, 10);
+    c.linkCue = (link.value === '' || isNaN(v) || v < 1) ? null : Math.min(cues.length, v) - 1;
+    updateSnippet();
+  });
+  updateSnippet();
+  const lmode = document.createElement('select');
+  [['auto', 'fire automatically'], ['remind', 'remind me — I press GO']]
+    .forEach(([v, t]) => {
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = t;
+      lmode.appendChild(o);
+    });
+  lmode.value = c.linkMode || 'auto';
+  lmode.addEventListener('change', () => { c.linkMode = lmode.value; });
+  const snipWrap = document.createElement('label');
+  snipWrap.className = 'mWide';
+  snipWrap.appendChild(document.createTextNode('Linked line'));
+  snipWrap.appendChild(snippet);
+
+  ed.append(
+    field('Name', name, true), field('Group', grp), field('Volume %', vol),
+    field('While this plays, duck others to (%)', duck),
+    field('Fade in (s)', fin), field('Fade out (s)', fout),
+    field('Start at (s)', st), field('End at (s)', en),
+    field('When THIS cue starts…', follow), field('…after how many seconds', fdelay),
+    loopWrap,
+    field('Link to subtitle #', link), field('On reaching that line', lmode),
+    snipWrap
+  );
+  const btns = document.createElement('div');
+  btns.className = 'mBtns';
+  const done = document.createElement('button');
+  done.textContent = 'Done';
+  done.className = 'primary';
+  done.tabIndex = -1;
+  done.addEventListener('click', () => {
+    musicEditorOpenId = null;
+    saveMusic();
+    renderMusic();
+    buildCueList();   // ♪ markers on subtitle rows may have changed
+    renderAll();
+  });
+  btns.appendChild(done);
+  ed.appendChild(btns);
+  ed.addEventListener('click', e => e.stopPropagation());
+  ed.addEventListener('change', saveMusic);
+  return ed;
+}
+
+function moveMusicCue(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= musicCues.length) return;
+  const [c] = musicCues.splice(i, 1);
+  musicCues.splice(j, 0, c);
+  if (musicStandby === i) musicStandby = j;
+  else if (musicStandby === j) musicStandby = i;
+  saveMusic();
+  renderMusic();
+}
+
+function deleteMusicCue(i) {
+  const c = musicCues[i];
+  if (!confirm('Delete music cue “' + c.name + '”? Its stored audio goes with it.\n(Undo is available for a few seconds afterwards.)')) return;
+  if (alertCueId === c.id) hideMusicAlert();
+  musicCues.splice(i, 1);
+  const wasStandby = musicStandby;
+  if (musicStandby > i) musicStandby--;
+  musicStandby = Math.max(0, Math.min(musicCues.length, musicStandby));
+  saveMusic();
+  renderMusic();
+  buildCueList();   // ♪ marker may disappear from a subtitle row
+  renderAll();
+  // The audio blob is only really removed once the undo window closes.
+  let finalizeTimer = null;
+  toast('Deleted music cue “' + c.name + '”', {
+    label: 'Undo',
+    fn: () => {
+      clearTimeout(finalizeTimer);
+      musicCues.splice(i, 0, c);
+      musicStandby = Math.max(0, Math.min(musicCues.length, wasStandby));
+      saveMusic();
+      renderMusic();
+      buildCueList();
+      renderAll();
+    },
+  });
+  finalizeTimer = setTimeout(() => {
+    audioDel('a' + c.id).catch(() => {});
+    if (urlCache.has(c.id)) { URL.revokeObjectURL(urlCache.get(c.id)); urlCache.delete(c.id); }
+  }, 6500);
+}
+
+function renderMusic() {
+  renderMusicStandby();
+  renderMusicList();
+  renderPlayers();
+  $('masterCtl').value = Math.round(masterVol * 100);
+  $('masterVal').textContent = Math.round(masterVol * 100) + '%';
+}
+
+function setRightTab(t) {
+  $('tabMusic').classList.toggle('sel', t === 'music');
+  $('tabCues').classList.toggle('sel', t === 'cues');
+  $('musicTab').style.display = t === 'music' ? 'flex' : 'none';
+  $('cuesTab').style.display = t === 'cues' ? 'flex' : 'none';
+  try { localStorage.setItem('subtitleTool.rtab', t); } catch (e) {}
+}
+
+function bindMusic() {
+  $('tabMusic').addEventListener('click', () => setRightTab('music'));
+  $('tabCues').addEventListener('click', () => setRightTab('cues'));
+  let savedTab = 'music';
+  try { savedTab = localStorage.getItem('subtitleTool.rtab') || 'music'; } catch (e) {}
+  setRightTab(savedTab === 'cues' ? 'cues' : 'music');
+  ['goBtn', 'mFadeBtn', 'mPauseBtn', 'mPanicBtn'].forEach((id, k) => {
+    const fns = [() => goMusic(), fadeCurrentMusic, pauseResumeMusic, panicMusic];
+    $(id).addEventListener('click', e => {
+      e.stopPropagation();
+      fns[k]();
+      document.activeElement.blur();
+    });
+  });
+  $('masterCtl').addEventListener('input', e => {
+    masterVol = (+e.target.value || 0) / 100;
+    $('masterVal').textContent = e.target.value + '%';
+    players.forEach(p => { p.a.volume = Math.max(0, Math.min(1, p.vol * masterVol)); });
+    saveMusic();
+  });
+  const addRow = $('musicAddRow');
+  const mfi = $('musicFileInput');
+  addRow.addEventListener('click', () => mfi.click());
+  mfi.addEventListener('change', () => {
+    if (mfi.files.length) addAudioFiles([...mfi.files]);
+    mfi.value = '';
+  });
+  ['dragenter', 'dragover'].forEach(ev => addRow.addEventListener(ev, e => {
+    e.preventDefault();
+    addRow.classList.add('drag');
+  }));
+  ['dragleave', 'drop'].forEach(ev => addRow.addEventListener(ev, e => {
+    e.preventDefault();
+    addRow.classList.remove('drag');
+  }));
+  addRow.addEventListener('drop', e => {
+    if (e.dataTransfer.files.length) addAudioFiles([...e.dataTransfer.files]);
+  });
+}
+
+async function initMusic() {
+  try {
+    const m = JSON.parse(localStorage.getItem(MUSIC_LS) || 'null');
+    if (m && Array.isArray(m.cues)) {
+      musicCues = m.cues;
+      musicStandby = m.standby || 0;
+      masterVol = (m.master != null) ? m.master : 1;
+      musicUid = m.uid || (Math.max(0, ...musicCues.map(c => c.id || 0)) + 1);
+    }
+  } catch (e) {}
+  migrateMusicCues();
+  try {
+    const keys = new Set(await audioKeys());
+    musicCues.forEach(c => { c.hasAudio = keys.has('a' + c.id); });
+  } catch (e) {
+    musicCues.forEach(c => { c.hasAudio = false; });
+  }
+  prewarmAudio();
+  renderMusic();
+}
+
+/* ================================================================
+   Console modes — full / subtitles only / music only
+   ================================================================ */
+const MODE_LS = 'subtitleTool.mode';
+const UISCALE_LS = 'subtitleTool.uiScale';
+let appMode = 'full';
+let uiScale = 100;
+
+function applyUiScale() {
+  // Scales the operator console only — the output window sizes its
+  // text from the stage height and the Font size setting, never this.
+  document.body.style.zoom = uiScale / 100;
+  $('uiScaleCtl').value = String(uiScale);
+  try { localStorage.setItem(UISCALE_LS, String(uiScale)); } catch (e) {}
+  renderPreview();
+}
+
+function applyMode() {
+  document.body.classList.toggle('mode-music', appMode === 'music');
+  document.body.classList.toggle('mode-subs', appMode === 'subtitles');
+  $('hintSubs').style.display = appMode === 'music' ? 'none' : '';
+  $('hintOut').style.display = appMode === 'music' ? 'none' : '';
+  $('hintMusic').style.display = appMode === 'subtitles' ? 'none' : '';
+  const titleEl = document.querySelector('#topBar .title');
+  if (!applyMode._baseTitle) applyMode._baseTitle = titleEl.textContent;
+  titleEl.textContent = appMode === 'music' ? 'CueTheShow · Music' : applyMode._baseTitle;
+  $('exportBtn').textContent = appMode === 'music' ? 'Export music cues' : 'Export cues';
+  $('modeCtl').value = appMode;
+  if (appMode === 'music') {
+    // Music-only is a standalone console: no script, no load screen.
+    $('musicTab').appendChild($('keysHint'));
+    $('musicTab').appendChild($('setupPanel'));
+    setRightTab('music');
+    $('loadScreen').style.display = 'none';
+    $('console').classList.add('active');
+  } else {
+    const lc = $('leftCol');
+    lc.insertBefore($('keysHint'), $('stylePanel'));
+    lc.appendChild($('setupPanel'));
+    if (appMode === 'subtitles') {
+      setRightTab('cues');
+      hideMusicAlert();
+    }
+    if (!cues.length) showLoadScreen();
+  }
+  try { localStorage.setItem(MODE_LS, appMode); } catch (e) {}
+}
+
+/* ================================================================
+   Screens / startup
+   ================================================================ */
+function toast(msg, action) {
+  const t = $('toast');
+  t.innerHTML = '';
+  t.appendChild(document.createTextNode(msg));
+  if (action) {
+    const b = document.createElement('button');
+    b.textContent = action.label;
+    b.tabIndex = -1;
+    b.addEventListener('click', () => {
+      t.classList.remove('show');
+      t.style.pointerEvents = 'none';
+      action.fn();
+    });
+    t.appendChild(b);
+    t.style.pointerEvents = 'auto';
+  } else {
+    t.style.pointerEvents = 'none';
+  }
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => {
+    t.classList.remove('show');
+    t.style.pointerEvents = 'none';
+  }, action ? 6000 : 3500);
+}
+
+function startShow(newCues, startIndex) {
+  cues = newCues;
+  index = startIndex;
+  blanked = false;
+  $('blankBtn').classList.remove('on');
+  $('blankBtn').textContent = 'Blank';
+  $('loadScreen').style.display = 'none';
+  $('console').classList.add('active');
+  buildCueList();
+  applySettingsToControls();
+  saveAll();
+  renderAll();
+  if (appMode !== 'music') {
+    const words = cues.reduce((a, c) => a + c.text.split(' ').length, 0);
+    toast(cues.length + ' cues · avg ' + (words / cues.length).toFixed(1) + ' words per cue');
+  }
+}
+
+function showLoadScreen() {
+  $('console').classList.remove('active');
+  $('loadScreen').style.display = 'flex';
+  refreshResumeBtn();
+}
+
+function refreshResumeBtn() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(LS.cues) || 'null'); } catch (e) {}
+  const btn = $('resumeBtn');
+  if (saved && saved.length) {
+    btn.style.display = 'inline-block';
+    btn.textContent = '← Back to the loaded show (' + saved.length + ' cues)';
+    btn.onclick = () => {
+      let idx = parseInt(localStorage.getItem(LS.index) || '-1', 10);
+      if (isNaN(idx)) idx = -1;
+      scriptName = localStorage.getItem(LS.name) || scriptName;
+      startShow(saved, idx);
+    };
+  } else {
+    btn.style.display = 'none';
+  }
+  $('clearBtn').style.display = (saved && saved.length) ? 'inline-block' : 'none';
+}
+
+function clearSavedData() {
+  if (!confirm('Clear the saved show (cues, edits, position, music cues and their audio) and reset styling to defaults? Exported .cues.json files are not affected.')) return;
+  try {
+    Object.values(LS).forEach(k => localStorage.removeItem(k));
+    localStorage.removeItem(MUSIC_LS);
+  } catch (e) {}
+  cues = [];
+  index = -1;
+  scriptName = '';
+  settings = Object.assign({}, DEFAULT_SETTINGS);
+  players.slice().forEach(removePlayer);
+  hideMusicAlert();
+  musicCues = [];
+  musicStandby = 0;
+  masterVol = 1;
+  musicUid = 1;
+  urlCache.forEach(u => URL.revokeObjectURL(u));
+  urlCache.clear();
+  audioClear().catch(() => {});
+  applySettingsToControls();
+  renderMusic();
+  refreshResumeBtn();
+  $('loadStatus').classList.remove('error');
+  $('loadStatus').textContent = 'Saved show data cleared.';
+}
+
+async function handleFile(file) {
+  const status = $('loadStatus');
+  status.classList.remove('error');
+  status.textContent = 'Reading ' + file.name + '…';
+
+  if (/\.json$/i.test(file.name) || (file.type || '').includes('json')) {
+    try {
+      const payload = JSON.parse(await file.text());
+      if (!payload || !Array.isArray(payload.cues) || !payload.cues.length ||
+          payload.cues.some(c => !c || typeof c.text !== 'string')) {
+        throw new Error('This does not look like an exported cue file.');
+      }
+      const imported = payload.cues.map((c, i) => ({
+        text: c.text,
+        sent: (typeof c.sent === 'number') ? c.sent : i,
+        start: c.start !== false,
+        end: c.end !== false,
+      }));
+      if (payload.settings) {
+        settings = Object.assign({}, settings, payload.settings);
+      }
+      scriptName = payload.name || file.name.replace(/\.cues\.json$|\.json$/i, '');
+      if (payload.music && Array.isArray(payload.music.cues)) {
+        musicCues = payload.music.cues.filter(c => c && c.name);
+        migrateMusicCues();
+        musicStandby = payload.music.standby || 0;
+        if (payload.music.master != null) masterVol = payload.music.master;
+        musicUid = Math.max(1, ...musicCues.map(c => (c.id || 0) + 1));
+        try {
+          const keys = new Set(await audioKeys());
+          musicCues.forEach(c => { c.hasAudio = keys.has('a' + c.id); });
+        } catch (e) {
+          musicCues.forEach(c => { c.hasAudio = false; });
+        }
+        const missing = musicCues.filter(c => !c.hasAudio).length;
+        if (missing) {
+          setTimeout(() => toast(missing + ' music cue' + (missing > 1 ? 's need' : ' needs') +
+            ' audio — add the tracks and they match by filename'), 500);
+        }
+        saveMusic();
+        prewarmAudio();
+        renderMusic();
+      }
+      status.textContent = '';
+      startShow(imported, -1);
+    } catch (err) {
+      status.classList.add('error');
+      status.textContent = 'Could not read cue file: ' +
+        (err && err.message ? err.message : err);
+    }
+    return;
+  }
+
+  if (!PDF_SUPPORT) {
+    status.classList.add('error');
+    status.textContent = 'This is the lite build — it takes pasted text or a ' +
+      '.cues.json file. Use the full subtitle-console.html for PDFs.';
+    return;
+  }
+  try {
+    const buf = await file.arrayBuffer();
+    const result = await processPdfBuffer(buf, (p, total) => {
+      status.textContent = 'Parsing page ' + p + ' of ' + total + '…';
+    });
+    scriptName = file.name.replace(/\.pdf$/i, '');
+    status.textContent = '';
+    startShow(result.cues, -1);
+  } catch (err) {
+    status.classList.add('error');
+    status.textContent = err && err.message ? err.message : 'Could not read this PDF.';
+  }
+}
+
+function handlePastedText(raw) {
+  const status = $('loadStatus');
+  status.classList.remove('error');
+  if (!raw.trim()) {
+    status.classList.add('error');
+    status.textContent = 'Paste some text first.';
+    return;
+  }
+  const result = chunkTextLines(raw);
+  if (!result.cues.length) {
+    status.classList.add('error');
+    status.textContent = 'No sentences found in the pasted text.';
+    return;
+  }
+  scriptName = result.cues[0].text.split(' ').slice(0, 4).join(' ')
+    .replace(/[^\w\s-]/g, '').replace(/\s+/g, ' ').trim() || 'pasted script';
+  $('pasteBox').value = '';
+  status.textContent = '';
+  startShow(result.cues, -1);
+}
+
+function bindLoadScreen() {
+  const dz = $('dropZone');
+  const fi = $('fileInput');
+  $('pasteBtn').addEventListener('click', () => handlePastedText($('pasteBox').value));
+  $('clearBtn').addEventListener('click', clearSavedData);
+  $('musicOnlyBtn').addEventListener('click', () => { appMode = 'music'; applyMode(); });
+  dz.addEventListener('click', () => fi.click());
+  fi.addEventListener('change', () => { if (fi.files[0]) handleFile(fi.files[0]); fi.value = ''; });
+  ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => {
+    e.preventDefault(); dz.classList.add('drag');
+  }));
+  ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => {
+    e.preventDefault(); dz.classList.remove('drag');
+  }));
+  dz.addEventListener('drop', e => {
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+}
+
+window.addEventListener('beforeunload', e => {
+  if ((cues.length || musicCues.length) && $('console').classList.contains('active')) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+(function init() {
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+  if (!/^https?:$/.test(location.protocol)) {
+    const d = document.getElementById('dlLink');
+    if (d) d.style.display = 'none';   // download link only makes sense hosted
+  }
+  if (navigator.maxTouchPoints > 0 || 'ontouchstart' in window ||
+      (window.matchMedia && matchMedia('(pointer: coarse)').matches)) {
+    document.body.classList.add('touch');
+  }
+  try {
+    const s = JSON.parse(localStorage.getItem(LS.settings) || 'null');
+    if (s) settings = Object.assign(settings, s);
+  } catch (e) {}
+  // Preferences load first — startShow and applyMode consult them.
+  try {
+    const m = localStorage.getItem(MODE_LS);
+    if (m === 'subtitles' || m === 'music') appMode = m;
+    const sc = parseInt(localStorage.getItem(UISCALE_LS), 10);
+    if ([90, 100, 110, 125, 150].includes(sc)) uiScale = sc;
+  } catch (e) {}
+
+  bindLoadScreen();
+  bindControls();
+  bindMusic();
+  initMusic();
+  refreshResumeBtn();
+
+  if (!PDF_SUPPORT) {
+    document.title = 'CueTheShow Lite';
+    document.querySelectorAll('#topBar .title')[0].textContent = 'CueTheShow Lite';
+    document.querySelector('#loadScreen h1').textContent = 'CueTheShow Lite';
+    document.querySelector('#dropZone strong').textContent = 'Drop a .cues.json file here';
+    document.querySelector('#dropZone span').textContent = '(exported from the full version or from this one)';
+    document.querySelector('#loadScreen .sub').textContent =
+      'Paste your script below or load a saved cue file. Cues are ~8 words ' +
+      '(max 12), and a new sentence always starts on a fresh screen.';
+    $('fileInput').accept = '.json,application/json';
+  }
+
+  // Auto-restore: reopening the tool goes straight back into the last
+  // show; the load screen only appears when nothing is stored (or via
+  // the "Load new script" button).
+  if (!/[?&]test=/.test(location.search)) {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(LS.cues) || 'null'); } catch (e) {}
+    if (saved && saved.length) {
+      let idx = parseInt(localStorage.getItem(LS.index) || '-1', 10);
+      if (isNaN(idx)) idx = -1;
+      scriptName = localStorage.getItem(LS.name) || '';
+      startShow(saved, idx);
+    }
+  }
+
+  applyMode();
+  applyUiScale();
+
+  // Headless test hook: ?test=<url-of-pdf> processes the file and dumps
+  // the result as JSON into the DOM. Not used during normal operation.
+  const m = location.search.match(/[?&]test=([^&]+)/);
+  if (m) {
+    const url = decodeURIComponent(m[1]);
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', url);
+    xhr.responseType = 'arraybuffer';
+    xhr.onload = async () => {
+      const pre = document.createElement('pre');
+      pre.id = 'testout';
+      try {
+        const r = await processPdfBuffer(xhr.response);
+        pre.textContent = JSON.stringify(r);
+      } catch (err) {
+        pre.textContent = JSON.stringify({ error: String(err && err.message || err) });
+      }
+      document.body.appendChild(pre);
+    };
+    xhr.onerror = () => {
+      const pre = document.createElement('pre');
+      pre.id = 'testout';
+      pre.textContent = JSON.stringify({ error: 'xhr failed' });
+      document.body.appendChild(pre);
+    };
+    xhr.send();
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+# never ship show content
+*.pdf
+*.cues.json
+*.wav
+*.mp3
+*.m4a
