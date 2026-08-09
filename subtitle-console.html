@@ -249,10 +249,15 @@
   }
   #setupPanel .label { font-size: 11px; letter-spacing: .1em; color: var(--dim); font-weight: 700; margin-right: 4px; }
   #modeWrap { margin-left: auto; display: flex; align-items: center; gap: 7px; color: var(--dim); font-size: 12px; }
-  #modeWrap select {
+  #modeWrap select, #showWrap select, #showRow select {
     font: inherit; font-size: 13px; color: var(--text); background: var(--panel2);
     border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; cursor: pointer;
+    max-width: 180px;
   }
+  #showWrap { display: flex; align-items: center; gap: 7px; color: var(--dim); font-size: 12px; }
+  #showLabel { color: var(--dim); }
+  #showRow { display: flex; align-items: center; gap: 8px; color: var(--dim); font-size: 13px; flex-wrap: wrap; justify-content: center; }
+  #showRow button { padding: 5px 11px; font-size: 12px; }
   /* Console modes: hide the half that isn't needed */
   body.mode-music #leftCol { display: none; }
   body.mode-music #rightCol {
@@ -355,6 +360,13 @@
   <h1>CueTheShow</h1>
   <p class="sub">Load a script PDF. It will be split into subtitle cues of about
      8 words (max 12), and a new sentence always starts on a fresh screen.</p>
+  <div id="showRow">
+    <span>Show:</span>
+    <select id="showCtlLoad"></select>
+    <button id="showNewBtnLoad" tabindex="-1">＋ New</button>
+    <button id="showRenameBtn" tabindex="-1">Rename</button>
+    <button id="showDeleteBtn" tabindex="-1">Delete</button>
+  </div>
   <div id="dropZone">
     <strong>Drop your PDF here</strong><br>or click to choose a file<br>
     <span style="font-size:12px">(also accepts a .cues.json file exported earlier)</span>
@@ -382,6 +394,7 @@
 <div id="console">
   <div id="topBar">
     <span class="title">CueTheShow</span>
+    <span id="showLabel"></span>
     <span id="cueCounter"></span>
     <span class="spacer"></span>
   </div>
@@ -440,6 +453,10 @@
 
       <div id="setupPanel">
         <span class="label">SETUP</span>
+        <label id="showWrap">Show
+          <select id="showCtl"></select>
+        </label>
+        <button id="showNewBtn" tabindex="-1">＋ New show</button>
         <button id="openOutputBtn" class="primary"><span id="outputDot"></span><span id="outputBtnLabel">Open output window</span></button>
         <button id="exportBtn" tabindex="-1">Export cues</button>
         <button id="newPdfBtn">Load new script</button>
@@ -787,12 +804,70 @@ async function processPdfBuffer(buf, onProgress) {
 /* ================================================================
    State + persistence
    ================================================================ */
-const LS = {
-  cues: 'subtitleTool.cues',
-  settings: 'subtitleTool.settings',
-  index: 'subtitleTool.index',
-  name: 'subtitleTool.name',
-};
+/* ---------- shows: each show is an isolated storage namespace ---------- */
+const SHOWS_LS = 'subtitleTool.shows';
+let showReg = null;      // {list:[{id,name}], current, nextId}
+let showId = 1;
+const LS = { cues: '', settings: '', index: '', name: '' };
+let MUSIC_LS = '';
+
+function refreshLSKeys() {
+  const p = 'subtitleTool.show.' + showId + '.';
+  LS.cues = p + 'cues';
+  LS.settings = p + 'settings';
+  LS.index = p + 'index';
+  LS.name = p + 'name';
+  MUSIC_LS = p + 'music';
+}
+
+function saveShowReg() {
+  try { localStorage.setItem(SHOWS_LS, JSON.stringify(showReg)); } catch (e) {}
+}
+
+function currentShowName() {
+  const s = showReg && showReg.list.find(x => x.id === showId);
+  return s ? s.name : '';
+}
+
+async function initShows() {
+  try { showReg = JSON.parse(localStorage.getItem(SHOWS_LS) || 'null'); } catch (e) { showReg = null; }
+  if (!showReg || !Array.isArray(showReg.list) || !showReg.list.length) {
+    showReg = { list: [{ id: 1, name: 'My show' }], current: 1, nextId: 2 };
+    // Migrate the pre-shows single-show data into show 1.
+    let hadLegacy = false;
+    ['cues', 'index', 'settings', 'name', 'music'].forEach(s => {
+      let v = null;
+      try { v = localStorage.getItem('subtitleTool.' + s); } catch (e) {}
+      if (v != null) {
+        hadLegacy = true;
+        try {
+          localStorage.setItem('subtitleTool.show.1.' + s, v);
+          localStorage.removeItem('subtitleTool.' + s);
+        } catch (e) {}
+      }
+    });
+    if (hadLegacy) {
+      const nm = localStorage.getItem('subtitleTool.show.1.name');
+      if (nm) showReg.list[0].name = nm;
+      try {
+        const keys = await audioKeys();
+        for (const k of keys) {
+          if (/^a\d+$/.test(String(k))) {
+            const blob = await audioGet(k);
+            if (blob) await audioPut('s1' + k, blob);
+            await audioDel(k);
+          }
+        }
+      } catch (e) {}
+    }
+    saveShowReg();
+  }
+  showId = showReg.current;
+  if (!showReg.list.some(s => s.id === showId)) showId = showReg.list[0].id;
+  showReg.current = showId;
+  if (!showReg.nextId) showReg.nextId = Math.max(...showReg.list.map(s => s.id)) + 1;
+  refreshLSKeys();
+}
 
 const DEFAULT_SETTINGS = {
   size: 64,               // px on a 1080p-tall screen
@@ -1287,9 +1362,7 @@ function bindControls() {
    crossfades the playing music; 'sfx' cues stack on top. Audio blobs
    live in IndexedDB so the show survives a restart.
    ================================================================ */
-const MUSIC_LS = 'subtitleTool.music';
-
-let musicCues = [];    // {id,name,fileName,layer,volume,fadeIn,fadeOut,loop,
+let musicCues = [];    // {id,name,fileName,group,volume,fadeIn,fadeOut,loop,
                        //  startAt,endAt,followMode,followDelay,duration,hasAudio}
 let musicStandby = 0;  // next cue GO will fire
 let masterVol = 1;
@@ -1334,11 +1407,20 @@ const audioPut = (k, b) => idbReq('readwrite', s => s.put(b, k));
 const audioGet = k => idbReq('readonly', s => s.get(k));
 const audioDel = k => idbReq('readwrite', s => s.delete(k));
 const audioKeys = () => idbReq('readonly', s => s.getAllKeys());
-const audioClear = () => idbReq('readwrite', s => s.clear());
+const audioKey = c => 's' + showId + 'a' + c.id;   // audio is per show
+
+async function deleteShowAudio(id) {
+  try {
+    const keys = await audioKeys();
+    for (const k of keys) {
+      if (String(k).startsWith('s' + id + 'a')) await audioDel(k);
+    }
+  } catch (e) {}
+}
 
 async function cueUrl(cue) {
   if (urlCache.has(cue.id)) return urlCache.get(cue.id);
-  const blob = await audioGet('a' + cue.id);
+  const blob = await audioGet(audioKey(cue));
   if (!blob) return null;
   const u = URL.createObjectURL(blob);
   urlCache.set(cue.id, u);
@@ -1365,7 +1447,7 @@ async function addAudioFiles(files) {
       linkCue: null, linkMode: 'auto', duck: null,
       duration: null,
     };
-    try { await audioPut('a' + cue.id, f); } catch (e) {
+    try { await audioPut(audioKey(cue), f); } catch (e) {
       toast('Could not store audio (browser storage unavailable)');
       continue;
     }
@@ -1957,7 +2039,7 @@ function deleteMusicCue(i) {
     },
   });
   finalizeTimer = setTimeout(() => {
-    audioDel('a' + c.id).catch(() => {});
+    audioDel(audioKey(c)).catch(() => {});
     if (urlCache.has(c.id)) { URL.revokeObjectURL(urlCache.get(c.id)); urlCache.delete(c.id); }
   }, 6500);
 }
@@ -2019,6 +2101,13 @@ function bindMusic() {
 }
 
 async function initMusic() {
+  players.slice().forEach(removePlayer);
+  hideMusicAlert();
+  musicCues = [];
+  musicStandby = 0;
+  masterVol = 1;
+  musicUid = 1;
+  musicEditorOpenId = null;
   try {
     const m = JSON.parse(localStorage.getItem(MUSIC_LS) || 'null');
     if (m && Array.isArray(m.cues)) {
@@ -2031,12 +2120,125 @@ async function initMusic() {
   migrateMusicCues();
   try {
     const keys = new Set(await audioKeys());
-    musicCues.forEach(c => { c.hasAudio = keys.has('a' + c.id); });
+    musicCues.forEach(c => { c.hasAudio = keys.has(audioKey(c)); });
   } catch (e) {
     musicCues.forEach(c => { c.hasAudio = false; });
   }
   prewarmAudio();
   renderMusic();
+}
+
+/* ================================================================
+   Show manager — switch, create, rename, delete
+   ================================================================ */
+function loadShowState() {
+  cues = [];
+  index = -1;
+  scriptName = '';
+  blanked = false;
+  settings = Object.assign({}, DEFAULT_SETTINGS);
+  try {
+    const s = JSON.parse(localStorage.getItem(LS.settings) || 'null');
+    if (s) settings = Object.assign(settings, s);
+  } catch (e) {}
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(LS.cues) || 'null'); } catch (e) {}
+  if (saved && saved.length) {
+    let idx = parseInt(localStorage.getItem(LS.index) || '-1', 10);
+    if (isNaN(idx)) idx = -1;
+    scriptName = localStorage.getItem(LS.name) || '';
+    startShow(saved, idx);
+  } else {
+    applySettingsToControls();
+    showLoadScreen();
+  }
+}
+
+async function switchShow(id) {
+  id = parseInt(id, 10);
+  if (id === showId || !showReg.list.some(s => s.id === id)) return;
+  players.slice().forEach(removePlayer);
+  hideMusicAlert();
+  urlCache.forEach(u => URL.revokeObjectURL(u));
+  urlCache.clear();
+  showId = id;
+  showReg.current = id;
+  saveShowReg();
+  refreshLSKeys();
+  await initMusic();
+  loadShowState();
+  renderShowUI();
+  refreshResumeBtn();
+  applyMode();
+  toast('Show: ' + currentShowName());
+}
+
+async function newShow(name) {
+  const id = showReg.nextId++;
+  showReg.list.push({ id, name: (name || '').trim() || 'Untitled show' });
+  saveShowReg();
+  await switchShow(id);
+}
+
+function renameShow(name) {
+  const s = showReg.list.find(x => x.id === showId);
+  if (s && name && name.trim()) {
+    s.name = name.trim();
+    saveShowReg();
+    renderShowUI();
+  }
+}
+
+async function deleteShow() {
+  if (showReg.list.length <= 1) {
+    toast('This is the only show — use “Clear saved show data” instead.');
+    return;
+  }
+  const s = showReg.list.find(x => x.id === showId);
+  if (!confirm('Delete show “' + s.name + '” — its script, music cues, settings and stored audio? This cannot be undone.')) return;
+  const gone = showId;
+  ['cues', 'index', 'settings', 'name', 'music'].forEach(k => {
+    try { localStorage.removeItem('subtitleTool.show.' + gone + '.' + k); } catch (e) {}
+  });
+  deleteShowAudio(gone);
+  showReg.list = showReg.list.filter(x => x.id !== gone);
+  saveShowReg();
+  showId = -1;
+  await switchShow(showReg.list[0].id);
+}
+
+function renderShowUI() {
+  ['showCtl', 'showCtlLoad'].forEach(cid => {
+    const sel = $(cid);
+    sel.innerHTML = '';
+    showReg.list.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s.id;
+      o.textContent = s.name;
+      sel.appendChild(o);
+    });
+    sel.value = String(showId);
+  });
+  $('showLabel').textContent = '· ' + currentShowName();
+}
+
+function bindShowUI() {
+  ['showCtl', 'showCtlLoad'].forEach(cid =>
+    $(cid).addEventListener('change', e => {
+      switchShow(e.target.value);
+      document.activeElement.blur();
+    }));
+  const askNew = () => {
+    const n = prompt('Name for the new show?', 'Untitled show');
+    if (n !== null) newShow(n);
+  };
+  $('showNewBtn').addEventListener('click', askNew);
+  $('showNewBtnLoad').addEventListener('click', askNew);
+  $('showRenameBtn').addEventListener('click', () => {
+    const n = prompt('Rename show:', currentShowName());
+    if (n !== null) renameShow(n);
+  });
+  $('showDeleteBtn').addEventListener('click', deleteShow);
 }
 
 /* ================================================================
@@ -2160,7 +2362,7 @@ function refreshResumeBtn() {
 }
 
 function clearSavedData() {
-  if (!confirm('Clear the saved show (cues, edits, position, music cues and their audio) and reset styling to defaults? Exported .cues.json files are not affected.')) return;
+  if (!confirm('Clear all data of show “' + currentShowName() + '” (cues, edits, position, music cues and their audio) and reset its styling? Other shows and exported .cues.json files are not affected.')) return;
   try {
     Object.values(LS).forEach(k => localStorage.removeItem(k));
     localStorage.removeItem(MUSIC_LS);
@@ -2177,7 +2379,7 @@ function clearSavedData() {
   musicUid = 1;
   urlCache.forEach(u => URL.revokeObjectURL(u));
   urlCache.clear();
-  audioClear().catch(() => {});
+  deleteShowAudio(showId);
   applySettingsToControls();
   renderMusic();
   refreshResumeBtn();
@@ -2215,7 +2417,7 @@ async function handleFile(file) {
         musicUid = Math.max(1, ...musicCues.map(c => (c.id || 0) + 1));
         try {
           const keys = new Set(await audioKeys());
-          musicCues.forEach(c => { c.hasAudio = keys.has('a' + c.id); });
+          musicCues.forEach(c => { c.hasAudio = keys.has(audioKey(c)); });
         } catch (e) {
           musicCues.forEach(c => { c.hasAudio = false; });
         }
@@ -2306,7 +2508,7 @@ window.addEventListener('beforeunload', e => {
   }
 });
 
-(function init() {
+(async function init() {
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
@@ -2318,10 +2520,6 @@ window.addEventListener('beforeunload', e => {
       (window.matchMedia && matchMedia('(pointer: coarse)').matches)) {
     document.body.classList.add('touch');
   }
-  try {
-    const s = JSON.parse(localStorage.getItem(LS.settings) || 'null');
-    if (s) settings = Object.assign(settings, s);
-  } catch (e) {}
   // Preferences load first — startShow and applyMode consult them.
   try {
     const m = localStorage.getItem(MODE_LS);
@@ -2329,12 +2527,6 @@ window.addEventListener('beforeunload', e => {
     const sc = parseInt(localStorage.getItem(UISCALE_LS), 10);
     if ([90, 100, 110, 125, 150].includes(sc)) uiScale = sc;
   } catch (e) {}
-
-  bindLoadScreen();
-  bindControls();
-  bindMusic();
-  initMusic();
-  refreshResumeBtn();
 
   if (!PDF_SUPPORT) {
     document.title = 'CueTheShow Lite';
@@ -2348,19 +2540,18 @@ window.addEventListener('beforeunload', e => {
     $('fileInput').accept = '.json,application/json';
   }
 
-  // Auto-restore: reopening the tool goes straight back into the last
-  // show; the load screen only appears when nothing is stored (or via
-  // the "Load new script" button).
-  if (!/[?&]test=/.test(location.search)) {
-    let saved = null;
-    try { saved = JSON.parse(localStorage.getItem(LS.cues) || 'null'); } catch (e) {}
-    if (saved && saved.length) {
-      let idx = parseInt(localStorage.getItem(LS.index) || '-1', 10);
-      if (isNaN(idx)) idx = -1;
-      scriptName = localStorage.getItem(LS.name) || '';
-      startShow(saved, idx);
-    }
-  }
+  await initShows();
+  bindLoadScreen();
+  bindControls();
+  bindMusic();
+  bindShowUI();
+  await initMusic();
+  refreshResumeBtn();
+
+  // Auto-restore the current show; the load screen only appears when
+  // it holds nothing (or via the "Load new script" button).
+  if (!/[?&]test=/.test(location.search)) loadShowState();
+  renderShowUI();
 
   applyMode();
   applyUiScale();
