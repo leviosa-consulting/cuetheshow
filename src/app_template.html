@@ -387,7 +387,8 @@
   <p class="sub" style="font-size:12px">A PDF needs selectable text — if yours is a
      scan, run OCR on it or paste the text instead. Cues can be edited afterwards
      (double-click a cue in the list). Wrap words in *asterisks* for
-     <em>italics</em>; italics already in a PDF come across automatically.</p>
+     <em>italics</em>, **double** for <strong>bold</strong>; italics already
+     in a PDF come across automatically.</p>
 </div>
 
 <!-- ================= Operator console ================= -->
@@ -941,20 +942,30 @@ function twoLineText(text) {
   return words.slice(0, best).join(' ') + '\n' + words.slice(best).join(' ');
 }
 
-// Cue text may carry *emphasis* markers; render them as italics.
-// An unpaired asterisk stays visible as a literal character.
+// Cue text may carry emphasis markers: *italic*, **bold**, ***both***.
+// Unpaired or mismatched asterisks stay visible as literal characters.
 function renderRichText(el, text) {
   el.textContent = '';
-  const parts = String(text).split(/\*([^*]+)\*/);
-  parts.forEach((p, i) => {
+  const parts = String(text).split(/(\*{1,3}[^*]+\*{1,3})/);
+  parts.forEach(p => {
     if (!p) return;
-    if (i % 2) {
-      const em = document.createElement('em');
-      em.textContent = p;
-      el.appendChild(em);
-    } else {
+    const m = p.match(/^(\*{1,3})([^*]+)\1$/);
+    if (!m) {
       el.appendChild(document.createTextNode(p));
+      return;
     }
+    let node = document.createTextNode(m[2]);
+    if (m[1].length >= 2) {
+      const b = document.createElement('strong');
+      b.appendChild(node);
+      node = b;
+    }
+    if (m[1].length !== 2) {
+      const em = document.createElement('em');
+      em.appendChild(node);
+      node = em;
+    }
+    el.appendChild(node);
   });
 }
 
