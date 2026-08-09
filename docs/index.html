@@ -432,8 +432,9 @@
 <!-- ================= Load screen ================= -->
 <div id="loadScreen">
   <h1>CueTheShow</h1>
-  <p class="sub">Load a script PDF. It will be split into subtitle cues of about
-     8 words (max 12), and a new sentence always starts on a fresh screen.</p>
+  <p class="sub">Running subtitles? Drop a script PDF or paste text below — it becomes
+     cues of ~8 words (max 12), and a new sentence always starts on a fresh screen.
+     Music needs no script: continue straight to the console.</p>
   <div id="showCards"></div>
   <div id="dropZone">
     <strong>Drop your PDF here</strong><br>or click to choose a file<br>
@@ -445,7 +446,7 @@
     <button id="pasteBtn">Create cues from pasted text</button>
   </div>
   <button id="resumeBtn" class="primary"></button>
-  <button id="musicOnlyBtn">Music-only console (no script needed)</button>
+  <button id="musicOnlyBtn">Continue without a script — music runs fine alone</button>
   <button id="clearBtn">Clear saved show data</button>
   <div id="loadStatus"></div>
   <p class="sub" id="aboutLine" style="font-size:12px">Free &amp; open source (MIT) ·
@@ -2277,6 +2278,12 @@ function loadShowState() {
     if (isNaN(idx)) idx = -1;
     scriptName = localStorage.getItem(LS.name) || '';
     startShow(saved, idx);
+  } else if (musicCues.length) {
+    // No script, but the show has music — that's a show. Open the console.
+    applySettingsToControls();
+    $('loadScreen').style.display = 'none';
+    $('console').classList.add('active');
+    renderAll();
   } else {
     applySettingsToControls();
     showLoadScreen();
@@ -2754,7 +2761,7 @@ function applyMode() {
       setRightTab('cues');
       hideMusicAlert();
     }
-    if (!cues.length) showLoadScreen();
+    if (!cues.length && !musicCues.length) showLoadScreen();
   }
   try { localStorage.setItem(MODE_LS, appMode); } catch (e) {}
 }
@@ -2963,7 +2970,11 @@ function bindLoadScreen() {
   const fi = $('fileInput');
   $('pasteBtn').addEventListener('click', () => handlePastedText($('pasteBox').value));
   $('clearBtn').addEventListener('click', clearSavedData);
-  $('musicOnlyBtn').addEventListener('click', () => { appMode = 'music'; applyMode(); });
+  $('musicOnlyBtn').addEventListener('click', () => {
+    $('loadScreen').style.display = 'none';
+    $('console').classList.add('active');
+    renderAll();
+  });
   dz.addEventListener('click', () => fi.click());
   fi.addEventListener('change', () => { if (fi.files[0]) handleFile(fi.files[0]); fi.value = ''; });
   ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => {
