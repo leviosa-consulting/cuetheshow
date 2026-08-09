@@ -2,7 +2,7 @@
 
 **Free subtitle (surtitle) and music cue console for live performance — in one browser tab.**
 
-🔗 **Use it now: [cuetheshow.com](https://cuetheshow.com)** — nothing to install, no account, free forever.
+🔗 **Use it now: [cuetheshow.gbsims.com](https://cuetheshow.gbsims.com)** (permanent home cuetheshow.com coming) — nothing to install, no account, free forever.
 
 Built for small theatre productions where one person runs everything: project subtitles
 on a screen while firing music and sound cues, from a laptop — or run sound alone from a phone.
@@ -54,7 +54,7 @@ the entire app — copy it to a USB stick, open it in Chrome at the venue, done.
 ## Development
 
 The app is one HTML template. `src/build.py` inlines [pdf.js](https://mozilla.github.io/pdf.js/)
-and emits the local builds plus the hosted `site/` files:
+and emits the local builds plus the hosted `docs/` files:
 
 ```
 python3 src/build.py
