@@ -838,12 +838,35 @@ function chunkTextLines(raw) {
 /* ================================================================
    PDF text extraction (pdf.js)
    ================================================================ */
-// The lite build ships without pdf.js — everything else works the same.
-const PDF_SUPPORT = typeof pdfjsLib !== 'undefined';
-if (PDF_SUPPORT) {
+// PDF engine: inlined in the full/offline build; the slim hosted build
+// fetches it on demand the first time a PDF is actually loaded (and the
+// service worker caches it from then on). A slim build opened from disk
+// has no engine — that is the lite experience.
+const PDF_INLINE = typeof pdfjsLib !== 'undefined';
+const PDF_AVAILABLE = PDF_INLINE || /^https?:$/.test(location.protocol);
+if (PDF_INLINE) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(
     new Blob([document.getElementById('pdfjs-worker-src').textContent],
              { type: 'text/javascript' }));
+}
+
+let pdfjsLoading = null;
+function ensurePdfjs() {
+  if (typeof pdfjsLib !== 'undefined') return Promise.resolve(true);
+  if (!/^https?:$/.test(location.protocol)) return Promise.resolve(false);
+  if (!pdfjsLoading) {
+    pdfjsLoading = new Promise(res => {
+      const s = document.createElement('script');
+      s.src = 'pdf.min.js';
+      s.onload = () => {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
+        res(true);
+      };
+      s.onerror = () => { pdfjsLoading = null; res(false); };
+      document.head.appendChild(s);
+    });
+  }
+  return pdfjsLoading;
 }
 
 async function extractLines(buf, onProgress) {
@@ -2936,11 +2959,19 @@ async function handleFile(file) {
     return;
   }
 
-  if (!PDF_SUPPORT) {
+  if (!PDF_AVAILABLE) {
     status.classList.add('error');
-    status.textContent = 'This is the lite build — it takes pasted text or a ' +
-      '.cues.json file. Use the full subtitle-console.html for PDFs.';
+    status.textContent = 'This offline copy has no PDF engine — paste the ' +
+      'script text instead, or use the full offline build for PDFs.';
     return;
+  }
+  if (typeof pdfjsLib === 'undefined') {
+    status.textContent = 'Loading the PDF engine…';
+    if (!(await ensurePdfjs())) {
+      status.classList.add('error');
+      status.textContent = 'Could not load the PDF engine — check the connection and try again.';
+      return;
+    }
   }
   try {
     const buf = await file.arrayBuffer();
@@ -3028,7 +3059,7 @@ window.addEventListener('beforeunload', e => {
     if ([90, 100, 110, 125, 150].includes(sc)) uiScale = sc;
   } catch (e) {}
 
-  if (!PDF_SUPPORT) {
+  if (!PDF_AVAILABLE) {
     document.title = 'CueTheShow Lite';
     document.querySelectorAll('#topBar .title')[0].textContent = 'CueTheShow Lite';
     document.querySelector('#loadScreen h1').textContent = 'CueTheShow Lite';
