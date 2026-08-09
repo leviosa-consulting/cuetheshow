@@ -77,6 +77,12 @@
   }
   #pasteBox:focus { outline: none; border-color: var(--accent); }
   #pasteBox::placeholder { color: var(--dim); }
+  #scriptIntake {
+    display: none; flex-direction: column; align-items: center; gap: 22px; width: 100%;
+  }
+  #scriptIntake.open { display: flex; }
+  #addScriptBtn { color: var(--dim); font-size: 13px; padding: 7px 16px; }
+  #addScriptBtn:hover { color: var(--text); }
 
   /* ---------- Console ---------- */
   /* 100% of body (not 100vh): body always equals the real window even
@@ -432,19 +438,26 @@
 <!-- ================= Load screen ================= -->
 <div id="loadScreen">
   <h1>CueTheShow</h1>
-  <p class="sub">Running subtitles? Drop a script PDF or paste text below — it becomes
-     cues of ~8 words (max 12), and a new sentence always starts on a fresh screen.
-     Music needs no script: continue straight to the console.</p>
   <div id="showCards"></div>
+  <button id="addScriptBtn" tabindex="-1">📄 Add a script — PDF or pasted text (for subtitles)</button>
+  <div id="scriptIntake">
+  <p class="sub">A script becomes subtitle cues of ~8 words (max 12); a new sentence
+     always starts on a fresh screen. Music needs no script.</p>
   <div id="dropZone">
     <strong>Drop your PDF here</strong><br>or click to choose a file<br>
     <span style="font-size:12px">(or a .cues.json / a full .cueshow.zip show bundle)</span>
   </div>
-  <input type="file" id="fileInput" accept=".pdf,.json,.zip,application/pdf,application/json,application/zip" style="display:none">
   <div id="pasteWrap">
     <textarea id="pasteBox" rows="5" placeholder="…or paste the script text here — every line break starts a new cue, even without punctuation"></textarea>
     <button id="pasteBtn">Create cues from pasted text</button>
   </div>
+  <p class="sub" style="font-size:12px">A PDF needs selectable text — if yours is a
+     scan, run OCR on it or paste the text instead. Cues can be edited afterwards
+     (double-click a cue in the list). Wrap words in *asterisks* for
+     <em>italics</em>, **double** for <strong>bold</strong>; italics already
+     in a PDF come across automatically.</p>
+  </div>
+  <input type="file" id="fileInput" accept=".pdf,.json,.zip,application/pdf,application/json,application/zip" style="display:none">
   <button id="resumeBtn" class="primary"></button>
   <button id="musicOnlyBtn">Continue without a script — music runs fine alone</button>
   <button id="clearBtn">Clear saved show data</button>
@@ -453,11 +466,7 @@
      runs entirely in your browser — your script and audio never leave this device ·
      <a id="dlLink" href="cuetheshow-offline.html" download="cuetheshow.html">download offline copy</a> ·
      <a href="https://github.com/leviosa-consulting/cuetheshow" target="_blank" rel="noopener">source</a></p>
-  <p class="sub" style="font-size:12px">A PDF needs selectable text — if yours is a
-     scan, run OCR on it or paste the text instead. Cues can be edited afterwards
-     (double-click a cue in the list). Wrap words in *asterisks* for
-     <em>italics</em>, **double** for <strong>bold</strong>; italics already
-     in a PDF come across automatically.</p>
+
 </div>
 
 <!-- ================= Operator console ================= -->
@@ -1464,7 +1473,9 @@ function bindControls() {
   });
   // Non-destructive: the current show stays in storage until a new
   // script actually loads; the load screen has a "back" button.
-  $('newPdfBtn').addEventListener('click', showLoadScreen);
+  $('newPdfBtn').addEventListener('click', () => showLoadScreen(true));
+  $('addScriptBtn').addEventListener('click', () =>
+    $('scriptIntake').classList.toggle('open'));
 
   document.addEventListener('keydown', handleKey);
   window.addEventListener('resize', renderPreview);
@@ -2813,9 +2824,10 @@ function startShow(newCues, startIndex) {
   }
 }
 
-function showLoadScreen() {
+function showLoadScreen(withScriptIntake) {
   $('console').classList.remove('active');
   $('loadScreen').style.display = 'flex';
+  $('scriptIntake').classList.toggle('open', !!withScriptIntake);
   refreshResumeBtn();
   if (showReg) renderShowCards();
 }
