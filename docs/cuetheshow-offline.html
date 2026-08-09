@@ -256,8 +256,33 @@
   }
   #showWrap { display: flex; align-items: center; gap: 7px; color: var(--dim); font-size: 12px; }
   #showLabel { color: var(--dim); }
-  #showRow { display: flex; align-items: center; gap: 8px; color: var(--dim); font-size: 13px; flex-wrap: wrap; justify-content: center; }
-  #showRow button { padding: 5px 11px; font-size: 12px; }
+  #showCards {
+    display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
+    max-width: min(640px, 92vw);
+  }
+  .showCard {
+    position: relative; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 18px; min-width: 170px; max-width: 230px;
+    cursor: pointer; text-align: left; transition: border-color .12s, transform .12s;
+  }
+  .showCard:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .showCard.cur { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .showCard .sname {
+    font-weight: 600; font-size: 15px; margin-bottom: 4px; padding-right: 40px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .showCard .sstats { color: var(--dim); font-size: 12px; }
+  .showCard .scur { color: var(--accent); font-size: 11px; margin-top: 3px; }
+  .showCard .sacts { position: absolute; top: 9px; right: 9px; display: flex; gap: 2px; visibility: hidden; }
+  .showCard:hover .sacts, body.touch .showCard .sacts { visibility: visible; }
+  .sacts button { background: none; border: none; color: var(--dim); cursor: pointer; padding: 2px 5px; font-size: 13px; }
+  .sacts button:hover { color: var(--text); background: none; }
+  .sacts button.sdel:hover { color: var(--danger); }
+  .showCard.newCard {
+    display: flex; align-items: center; justify-content: center;
+    color: var(--dim); border-style: dashed; min-height: 62px; font-size: 14px;
+  }
+  .showCard.newCard:hover { color: var(--text); }
   /* Console modes: hide the half that isn't needed */
   body.mode-music #leftCol { display: none; }
   body.mode-music #rightCol {
@@ -360,13 +385,7 @@
   <h1>CueTheShow</h1>
   <p class="sub">Load a script PDF. It will be split into subtitle cues of about
      8 words (max 12), and a new sentence always starts on a fresh screen.</p>
-  <div id="showRow">
-    <span>Show:</span>
-    <select id="showCtlLoad"></select>
-    <button id="showNewBtnLoad" tabindex="-1">＋ New</button>
-    <button id="showRenameBtn" tabindex="-1">Rename</button>
-    <button id="showDeleteBtn" tabindex="-1">Delete</button>
-  </div>
+  <div id="showCards"></div>
   <div id="dropZone">
     <strong>Drop your PDF here</strong><br>or click to choose a file<br>
     <span style="font-size:12px">(also accepts a .cues.json file exported earlier)</span>
@@ -2191,8 +2210,8 @@ async function newShow(name) {
   await switchShow(id);
 }
 
-function renameShow(name) {
-  const s = showReg.list.find(x => x.id === showId);
+function renameShowById(id, name) {
+  const s = showReg.list.find(x => x.id === id);
   if (s && name && name.trim()) {
     s.name = name.trim();
     saveShowReg();
@@ -2200,56 +2219,132 @@ function renameShow(name) {
   }
 }
 
-async function deleteShow() {
+function renameShow(name) { renameShowById(showId, name); }
+
+async function deleteShowById(id) {
   if (showReg.list.length <= 1) {
     toast('This is the only show — use “Clear saved show data” instead.');
     return;
   }
-  const s = showReg.list.find(x => x.id === showId);
+  const s = showReg.list.find(x => x.id === id);
+  if (!s) return;
   if (!confirm('Delete show “' + s.name + '” — its script, music cues, settings and stored audio? This cannot be undone.')) return;
-  const gone = showId;
   ['cues', 'index', 'settings', 'name', 'music'].forEach(k => {
-    try { localStorage.removeItem('subtitleTool.show.' + gone + '.' + k); } catch (e) {}
+    try { localStorage.removeItem('subtitleTool.show.' + id + '.' + k); } catch (e) {}
   });
-  deleteShowAudio(gone);
-  showReg.list = showReg.list.filter(x => x.id !== gone);
+  deleteShowAudio(id);
+  showReg.list = showReg.list.filter(x => x.id !== id);
   saveShowReg();
-  showId = -1;
-  await switchShow(showReg.list[0].id);
+  if (id === showId) {
+    showId = -1;
+    await switchShow(showReg.list[0].id);
+  } else {
+    renderShowUI();
+  }
+}
+
+function deleteShow() { return deleteShowById(showId); }
+
+function showStats(id) {
+  let subs = 0, mus = 0;
+  try { subs = (JSON.parse(localStorage.getItem('subtitleTool.show.' + id + '.cues') || '[]') || []).length; } catch (e) {}
+  try { mus = ((JSON.parse(localStorage.getItem('subtitleTool.show.' + id + '.music') || 'null') || {}).cues || []).length; } catch (e) {}
+  return { subs, mus };
+}
+
+function renderShowCards() {
+  const grid = $('showCards');
+  if (!grid || !showReg) return;
+  grid.innerHTML = '';
+  showReg.list.forEach(s => {
+    const card = document.createElement('div');
+    card.className = 'showCard' + (s.id === showId ? ' cur' : '');
+    const name = document.createElement('div');
+    name.className = 'sname';
+    name.textContent = s.name;
+    const st = showStats(s.id);
+    const stats = document.createElement('div');
+    stats.className = 'sstats';
+    stats.textContent = st.subs + ' subtitle cue' + (st.subs === 1 ? '' : 's') +
+      ' · ' + st.mus + ' music cue' + (st.mus === 1 ? '' : 's');
+    card.append(name, stats);
+    if (s.id === showId) {
+      const cur = document.createElement('div');
+      cur.className = 'scur';
+      cur.textContent = '● current';
+      card.appendChild(cur);
+    }
+    const acts = document.createElement('div');
+    acts.className = 'sacts';
+    const ren = document.createElement('button');
+    ren.textContent = '✎';
+    ren.title = 'Rename show';
+    ren.tabIndex = -1;
+    ren.addEventListener('click', e => {
+      e.stopPropagation();
+      const n = prompt('Rename show:', s.name);
+      if (n !== null) renameShowById(s.id, n);
+    });
+    acts.appendChild(ren);
+    if (showReg.list.length > 1) {
+      const del = document.createElement('button');
+      del.textContent = '×';
+      del.className = 'sdel';
+      del.title = 'Delete show';
+      del.tabIndex = -1;
+      del.addEventListener('click', e => {
+        e.stopPropagation();
+        deleteShowById(s.id);
+      });
+      acts.appendChild(del);
+    }
+    card.appendChild(acts);
+    card.addEventListener('click', () => {
+      if (s.id === showId) {
+        if (cues.length || appMode === 'music') {
+          $('loadScreen').style.display = 'none';
+          $('console').classList.add('active');
+          renderAll();
+        }
+        return;
+      }
+      switchShow(s.id);
+    });
+    grid.appendChild(card);
+  });
+  const add = document.createElement('div');
+  add.className = 'showCard newCard';
+  add.textContent = '＋ New show';
+  add.addEventListener('click', () => {
+    const n = prompt('Name for the new show?', 'Untitled show');
+    if (n !== null) newShow(n);
+  });
+  grid.appendChild(add);
 }
 
 function renderShowUI() {
-  ['showCtl', 'showCtlLoad'].forEach(cid => {
-    const sel = $(cid);
-    sel.innerHTML = '';
-    showReg.list.forEach(s => {
-      const o = document.createElement('option');
-      o.value = s.id;
-      o.textContent = s.name;
-      sel.appendChild(o);
-    });
-    sel.value = String(showId);
+  const sel = $('showCtl');
+  sel.innerHTML = '';
+  showReg.list.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.id;
+    o.textContent = s.name;
+    sel.appendChild(o);
   });
+  sel.value = String(showId);
   $('showLabel').textContent = '· ' + currentShowName();
+  renderShowCards();
 }
 
 function bindShowUI() {
-  ['showCtl', 'showCtlLoad'].forEach(cid =>
-    $(cid).addEventListener('change', e => {
-      switchShow(e.target.value);
-      document.activeElement.blur();
-    }));
-  const askNew = () => {
+  $('showCtl').addEventListener('change', e => {
+    switchShow(e.target.value);
+    document.activeElement.blur();
+  });
+  $('showNewBtn').addEventListener('click', () => {
     const n = prompt('Name for the new show?', 'Untitled show');
     if (n !== null) newShow(n);
-  };
-  $('showNewBtn').addEventListener('click', askNew);
-  $('showNewBtnLoad').addEventListener('click', askNew);
-  $('showRenameBtn').addEventListener('click', () => {
-    const n = prompt('Rename show:', currentShowName());
-    if (n !== null) renameShow(n);
   });
-  $('showDeleteBtn').addEventListener('click', deleteShow);
 }
 
 /* ================================================================
@@ -2351,6 +2446,7 @@ function showLoadScreen() {
   $('console').classList.remove('active');
   $('loadScreen').style.display = 'flex';
   refreshResumeBtn();
+  if (showReg) renderShowCards();
 }
 
 function refreshResumeBtn() {
