@@ -239,6 +239,7 @@
     border: 1px solid var(--border); border-radius: 5px; padding: 4px 6px; width: 100%;
   }
   .mEditor .mChk { flex-direction: row; align-items: center; gap: 6px; align-self: end; padding-bottom: 5px; }
+  body.mode-music .mEditor .linkField { display: none; }
   .mEditor .mBtns { grid-column: span 2; display: flex; gap: 8px; justify-content: flex-end; }
   .mEditor .mBtns button { padding: 5px 14px; font-size: 12px; }
 
@@ -2068,14 +2069,19 @@ function buildMusicEditor(c) {
   snipWrap.appendChild(document.createTextNode('Linked line'));
   snipWrap.appendChild(snippet);
 
+  // Rows pair deliberately: related fields share a line, and the
+  // subtitle-link fields disappear entirely in music-only mode.
+  const linkF = field('Link to subtitle #', link);
+  const lmodeF = field('On reaching that line', lmode);
+  [linkF, lmodeF, snipWrap].forEach(el => el.classList.add('linkField'));
   ed.append(
-    field('Name', name, true), field('Group', grp), field('Volume %', vol),
-    field('While this plays, duck others to (%)', duck),
+    field('Name', name, true),
+    field('Group', grp), field('Volume %', vol),
+    field('While this plays, duck others to (%)', duck), loopWrap,
     field('Fade in (s)', fin), field('Fade out (s)', fout),
     field('Start at (s)', st), field('End at (s)', en),
     field('When THIS cue starts…', follow), field('…after how many seconds', fdelay),
-    loopWrap,
-    field('Link to subtitle #', link), field('On reaching that line', lmode),
+    linkF, lmodeF,
     snipWrap
   );
   const btns = document.createElement('div');
