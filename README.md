@@ -1,22 +1,32 @@
 # CueTheShow
 
-**Free subtitle (surtitle) and music cue console for live performance — in one browser tab.**
+**Free music & subtitle cue console for live performance — in one browser tab.**
 
 🔗 **Use it now: [cuetheshow.gbsims.com](https://cuetheshow.gbsims.com)** (permanent home cuetheshow.com coming) — nothing to install, no account, free forever.
 
-Built for small theatre productions where one person runs everything: project subtitles
-on a screen while firing music and sound cues, from a laptop — or run sound alone from a phone.
+Built for small theatre and dance productions where one person runs everything: fire music
+and sound cues from a laptop or phone — and, when the show needs them, project subtitles too.
 
 ## Why this exists
 
 Paid cue software is excellent and also expensive, subscription-bound, and heavy for a
-community production that needs *show the next line, play the next track*. CueTheShow is
+community production that needs *play the next track, show the next line*. CueTheShow is
 the simple version, done carefully, and given away.
 
 **Your work stays yours.** Everything runs inside your browser. Scripts, audio files, and
 cue lists never leave your device — there is no server, no upload, no account, no tracking.
 
 ## What it does
+
+**Music & sound**
+- Cue stack with its own GO — crossfades, fade in/out, per-cue volume, loop,
+  start/end trims, auto-follow (together / after delay / at track end)
+- Groups: independent beds run simultaneously (ambience under themes); "stack" cues
+  layer on top; ducking pulls other tracks down while a cue plays and restores them after
+- Link a music cue to a subtitle line: fire automatically when the line is reached, or
+  get a clear reminder and fire it yourself
+- Panic fade, pause/resume, master volume — audio is stored in the browser, so a
+  restart brings the whole show back ready to play
 
 **Subtitles / surtitles**
 - Load a script PDF (or paste text) — it's split into subtitle cues (~8 words, max 12);
@@ -28,16 +38,6 @@ cue lists never leave your device — there is no server, no upload, no account,
   (italics in the PDF carry over automatically); long cues display as two balanced lines
 - Edit, insert, delete (confirm + undo), and reorder cues; everything auto-saves and
   auto-restores
-
-**Music & sound**
-- Cue stack with its own GO — crossfades, fade in/out, per-cue volume, loop,
-  start/end trims, auto-follow (together / after delay / at track end)
-- Groups: independent beds run simultaneously (ambience under themes); "stack" cues
-  layer on top; ducking pulls other tracks down while a cue plays and restores them after
-- Link a music cue to a subtitle line: fire automatically when the line is reached, or
-  get a clear reminder and fire it yourself
-- Panic fade, pause/resume, master volume — audio is stored in the browser, so a
-  restart brings the whole show back ready to play
 
 **Operation**
 - Keyboard-first: `Space` next line, `Enter` GO, `S` fade, `X` stop, `B` blank

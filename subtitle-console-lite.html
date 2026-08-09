@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CueTheShow — subtitle & music cues for live performance</title>
-<meta name="description" content="Free subtitle (surtitle) and music cue console for live theatre. Runs entirely in your browser — your script and audio never leave your device.">
+<title>CueTheShow — music & subtitle cues for live performance</title>
+<meta name="description" content="Free music and subtitle (surtitle) cue console for live theatre and dance. Runs entirely in your browser — your audio and script never leave your device.">
 <meta name="theme-color" content="#16181d">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -532,9 +532,9 @@
           </select>
           &nbsp;Console mode
           <select id="modeCtl">
-            <option value="full">Subtitles + music</option>
-            <option value="subtitles">Subtitles only</option>
             <option value="music">Music only</option>
+            <option value="full">Music + subtitles</option>
+            <option value="subtitles">Subtitles only</option>
           </select>
         </label>
       </div>
@@ -575,15 +575,16 @@
     <button id="helpClose" tabindex="-1">×</button>
     <h2>Running a show in three steps</h2>
     <ol>
-      <li><strong>Script</strong> — drop a PDF or paste text. It becomes subtitle cues
-        (~8 words each; a new sentence always starts on a fresh screen). Edit any cue
-        in the ☰ Cue list; <code>*italic*</code>, <code>**bold**</code>.</li>
-      <li><strong>Music</strong> — add audio files in the ♪ Music tab. Set volume, fades,
-        loops and trims per cue (✎). Groups A–D crossfade within themselves and play
-        over each other; <em>stack</em> plays on top. Link a cue to a subtitle line to
-        fire it automatically — or get a reminder.</li>
-      <li><strong>Show time</strong> — click <em>Projector view</em>, drag that window to
-        the projector, double-click it for fullscreen. Then run everything with keys:</li>
+      <li><strong>Music</strong> — add your audio files, put them in show order, and set
+        volume, fades, loops and trims per cue (✎). Groups A–D crossfade within
+        themselves and play over each other; <em>stack</em> plays on top. Press
+        <kbd>⏎</kbd> GO for each cue at show time — that's the whole job.</li>
+      <li><strong>Subtitles (optional)</strong> — running surtitles or captions too?
+        Switch Console mode to <em>Music + subtitles</em> in SETUP, then drop a script
+        PDF or paste text; it becomes subtitle cues (~8 words, sentence-safe).
+        <code>*italic*</code>, <code>**bold**</code>. Music cues can link to lines.</li>
+      <li><strong>Show time</strong> — with subtitles, click <em>Projector view</em>,
+        drag it to the projector, double-click for fullscreen. The keys:</li>
     </ol>
     <table>
       <tr><td><kbd>Space</kbd> / <kbd>→</kbd></td><td>next subtitle</td><td><kbd>⏎</kbd></td><td>GO — fire music</td></tr>
@@ -2675,7 +2676,7 @@ function printCueSheet() {
    ================================================================ */
 const MODE_LS = 'subtitleTool.mode';
 const UISCALE_LS = 'subtitleTool.uiScale';
-let appMode = 'full';
+let appMode = 'music';   // music-first: every production has sound cues
 let uiScale = 100;
 
 function applyUiScale() {
@@ -2959,7 +2960,7 @@ window.addEventListener('beforeunload', e => {
   // Preferences load first — startShow and applyMode consult them.
   try {
     const m = localStorage.getItem(MODE_LS);
-    if (m === 'subtitles' || m === 'music') appMode = m;
+    if (m === 'full' || m === 'subtitles' || m === 'music') appMode = m;
     const sc = parseInt(localStorage.getItem(UISCALE_LS), 10);
     if ([90, 100, 110, 125, 150].includes(sc)) uiScale = sc;
   } catch (e) {}
@@ -2991,6 +2992,7 @@ window.addEventListener('beforeunload', e => {
 
   applyMode();
   applyUiScale();
+  window.appReady = true;   // init (incl. async storage reads) is complete
 
   // Headless test hook: ?test=<url-of-pdf> processes the file and dumps
   // the result as JSON into the DOM. Not used during normal operation.

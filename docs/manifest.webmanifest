@@ -1,7 +1,7 @@
 {
   "name": "CueTheShow",
   "short_name": "CueTheShow",
-  "description": "Subtitle & music cue console for live performance. Free, offline, private.",
+  "description": "Music & subtitle cue console for live performance. Free, offline, private.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
