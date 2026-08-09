@@ -255,7 +255,12 @@
     max-width: 180px;
   }
   #showWrap { display: flex; align-items: center; gap: 7px; color: var(--dim); font-size: 12px; }
-  #showLabel { color: var(--dim); }
+  #showsBtn {
+    background: none; border: 1px solid transparent; color: var(--dim);
+    padding: 4px 10px; font-size: 13px; border-radius: 6px;
+  }
+  #showsBtn:hover { border-color: var(--border); background: var(--panel2); color: var(--text); }
+  #showLabel { color: inherit; }
   #showCards {
     display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
     max-width: min(640px, 92vw);
@@ -322,6 +327,7 @@
     #cuesTab { flex: none; }
     #cueList { flex: none; max-height: 430px; overflow-y: auto; }
     #keysHint { display: none; }   /* no keyboard on a phone */
+    #topBar { flex-wrap: wrap; row-gap: 6px; }
     #goBtn { padding: 22px 0; }
     #transport button { padding: 16px 0; }
     /* Music cues become two-row cards: full name on top, badge +
@@ -414,9 +420,10 @@
 <div id="console">
   <div id="topBar">
     <span class="title">CueTheShow</span>
-    <span id="showLabel"></span>
+    <button id="showsBtn" tabindex="-1" title="All shows"><span id="showLabel"></span> ▾</button>
     <span id="cueCounter"></span>
     <span class="spacer"></span>
+    <button id="openOutputBtn" class="primary"><span id="outputDot"></span><span id="outputBtnLabel">Projector view</span></button>
   </div>
 
   <div id="main">
@@ -477,7 +484,6 @@
           <select id="showCtl"></select>
         </label>
         <button id="showNewBtn" tabindex="-1">＋ New show</button>
-        <button id="openOutputBtn" class="primary"><span id="outputDot"></span><span id="outputBtnLabel">Open output window</span></button>
         <button id="exportBtn" tabindex="-1">Export cues</button>
         <button id="newPdfBtn">Load new script</button>
         <label id="modeWrap">UI size
@@ -1383,7 +1389,7 @@ function bindControls() {
   setInterval(() => {
     const live = outWin && !outWin.closed;
     $('outputDot').classList.toggle('live', !!live);
-    $('outputBtnLabel').textContent = live ? 'Output live' : 'Open output window';
+    $('outputBtnLabel').textContent = live ? 'Projector live' : 'Projector view';
   }, 800);
 }
 
@@ -2332,11 +2338,15 @@ function renderShowUI() {
     sel.appendChild(o);
   });
   sel.value = String(showId);
-  $('showLabel').textContent = '· ' + currentShowName();
+  $('showLabel').textContent = currentShowName();
   renderShowCards();
 }
 
 function bindShowUI() {
+  $('showsBtn').addEventListener('click', () => {
+    showLoadScreen();
+    document.activeElement.blur();
+  });
   $('showCtl').addEventListener('change', e => {
     switchShow(e.target.value);
     document.activeElement.blur();
