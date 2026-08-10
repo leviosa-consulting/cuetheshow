@@ -95,7 +95,13 @@
     padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--border);
     flex: 0 0 auto;
   }
-  #topBar .title { font-weight: 600; }
+  #topBar .title { font-weight: 600; display: flex; align-items: center; }
+  .logoMark {
+    width: 20px; height: 20px; margin-right: 8px; flex: 0 0 auto;
+    filter: drop-shadow(0 0 6px rgba(91, 157, 217, .45));
+  }
+  #loadScreen h1 { display: flex; align-items: center; gap: 12px; }
+  #loadScreen h1 .logoMark { width: 34px; height: 34px; margin-right: 0; }
   #topBar .spacer { flex: 1; }
   #cueCounter { color: var(--dim); font-variant-numeric: tabular-nums; }
   #outputDot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); margin-right: 7px; vertical-align: 1px; }
@@ -263,10 +269,12 @@
   }
   #showWrap { display: flex; align-items: center; gap: 7px; color: var(--dim); font-size: 12px; }
   #showsBtn {
-    background: none; border: 1px solid transparent; color: var(--dim);
-    padding: 4px 10px; font-size: 13px; border-radius: 6px;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 12px; font-size: 14px; border-radius: 7px;
   }
-  #showsBtn:hover { border-color: var(--border); background: var(--panel2); color: var(--text); }
+  #showsBtn:hover { border-color: var(--accent); }
+  #showsBtn .chev { color: var(--accent); font-size: 13px; line-height: 1; }
   #showLabel { color: inherit; }
   #showCards {
     display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
@@ -280,16 +288,19 @@
   .showCard:hover { border-color: var(--accent); transform: translateY(-2px); }
   .showCard.cur { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
   .showCard .sname {
-    font-weight: 600; font-size: 15px; margin-bottom: 4px; padding-right: 40px;
+    font-weight: 600; font-size: 15px; margin-bottom: 4px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .showCard .sstats { color: var(--dim); font-size: 12px; }
   .showCard .scur { color: var(--accent); font-size: 11px; margin-top: 3px; }
-  .showCard .sacts { position: absolute; top: 9px; right: 9px; display: flex; gap: 2px; visibility: hidden; }
+  .showCard .sacts { display: flex; gap: 6px; margin-top: 10px; visibility: hidden; }
   .showCard:hover .sacts, body.touch .showCard .sacts { visibility: visible; }
-  .sacts button { background: none; border: none; color: var(--dim); cursor: pointer; padding: 2px 5px; font-size: 13px; }
-  .sacts button:hover { color: var(--text); background: none; }
-  .sacts button.sdel:hover { color: var(--danger); }
+  .sacts button {
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--dim); cursor: pointer; padding: 5px 11px; font-size: 16px; line-height: 1;
+  }
+  .sacts button:hover { color: var(--text); border-color: var(--accent); background: var(--panel2); }
+  .sacts button.sdel:hover { color: var(--danger); border-color: var(--danger); }
   .showCard.newCard {
     display: flex; align-items: center; justify-content: center;
     color: var(--dim); border-style: dashed; min-height: 62px; font-size: 14px;
@@ -309,6 +320,10 @@
   body.mode-subs #musicAlert { display: none !important; }
   #musicOnlyBtn { color: var(--dim); font-size: 12px; padding: 5px 12px; }
   #keysHint { text-align: center; color: var(--dim); font-size: 12px; padding-bottom: 4px; }
+  /* A locked show runs but does not change. */
+  body.show-locked .cueItem .add, body.show-locked .cueItem .del,
+  body.show-locked #addEndRow, body.show-locked .mcueRow button,
+  body.show-locked #musicAddRow, body.show-locked #newPdfBtn { display: none !important; }
   #previewTC { position: absolute; inset: 0; display: none; }
   #testCardBtn.on { background: var(--accent-soft); border-color: var(--accent); }
   #helpBtn {
@@ -437,7 +452,7 @@
 
 <!-- ================= Load screen ================= -->
 <div id="loadScreen">
-  <h1>CueTheShow</h1>
+  <h1><svg class="logoMark" viewBox="0 0 100 100" aria-hidden="true"><polygon points="26,18 88,50 26,82" fill="#5b9dd9"/><circle cx="80" cy="22" r="10" fill="#6fbf85"/></svg><span id="h1Text">CueTheShow</span></h1>
   <div id="showCards"></div>
   <button id="addScriptBtn" tabindex="-1">📄 Add a script — PDF or pasted text (for subtitles)</button>
   <div id="scriptIntake">
@@ -472,8 +487,8 @@
 <!-- ================= Operator console ================= -->
 <div id="console">
   <div id="topBar">
-    <span class="title">CueTheShow</span>
-    <button id="showsBtn" tabindex="-1" title="All shows"><span id="showLabel"></span> ▾</button>
+    <span class="title"><svg class="logoMark" viewBox="0 0 100 100" aria-hidden="true"><polygon points="26,18 88,50 26,82" fill="#5b9dd9"/><circle cx="80" cy="22" r="10" fill="#6fbf85"/></svg><span id="titleText">CueTheShow</span></span>
+    <button id="showsBtn" tabindex="-1" title="All shows"><span id="showLabel"></span><span class="chev">▾</span></button>
     <span id="cueCounter"></span>
     <span class="spacer"></span>
     <button id="helpBtn" tabindex="-1" title="Quick guide">?</button>
@@ -960,6 +975,15 @@ function saveShowReg() {
   try { localStorage.setItem(SHOWS_LS, JSON.stringify(showReg)); } catch (e) {}
 }
 
+function isLocked(id) {
+  const s = showReg && showReg.list.find(x => x.id === (id == null ? showId : id));
+  return !!(s && s.locked);
+}
+
+function lockToast() {
+  toast('Show is locked 🔒 — unlock it on the shows screen.');
+}
+
 function currentShowName() {
   const s = showReg && showReg.list.find(x => x.id === showId);
   return s ? s.name : '';
@@ -1272,6 +1296,7 @@ function buildCueList() {
 }
 
 function deleteCue(i, silent) {
+  if (isLocked()) return lockToast();
   // silent = internal cleanup (abandoned empty insert) — no dialog, no toast
   if (!silent) {
     const preview = cues[i].text.length > 60 ? cues[i].text.slice(0, 60) + '…' : cues[i].text;
@@ -1314,6 +1339,7 @@ function deleteCue(i, silent) {
 }
 
 function insertCue(i) {
+  if (isLocked()) return lockToast();
   // Insert an empty cue after index i and open it for editing;
   // if it is left empty, it removes itself.
   setRightTab('cues');   // the editor lives in the Cues tab
@@ -1335,6 +1361,7 @@ function insertCue(i) {
 }
 
 function editCue(i, item, txtEl) {
+  if (isLocked()) return lockToast();
   if (item.querySelector('textarea')) return;
   const ta = document.createElement('textarea');
   ta.value = cues[i].text;
@@ -1588,6 +1615,7 @@ function prewarmAudio() {
 
 // ---------- adding tracks ----------
 async function addAudioFiles(files) {
+  if (isLocked()) return lockToast();
   let added = 0;
   for (const f of files) {
     if (!/^audio\//.test(f.type || '') &&
@@ -1996,6 +2024,7 @@ function renderMusicList() {
     row.appendChild(mkBtn('▲', 'Move up', () => moveMusicCue(i, -1)));
     row.appendChild(mkBtn('▼', 'Move down', () => moveMusicCue(i, 1)));
     row.appendChild(mkBtn('✎', 'Edit settings', () => {
+      if (isLocked()) return lockToast();
       musicEditorOpenId = musicEditorOpenId === c.id ? null : c.id;
       renderMusicList();
     }));
@@ -2008,6 +2037,7 @@ function renderMusicList() {
       renderMusic();
     });
     row.addEventListener('dblclick', () => {
+      if (isLocked()) return lockToast();
       musicEditorOpenId = c.id;
       renderMusicList();
     });
@@ -2166,6 +2196,7 @@ function buildMusicEditor(c) {
 }
 
 function moveMusicCue(i, dir) {
+  if (isLocked()) return lockToast();
   const j = i + dir;
   if (j < 0 || j >= musicCues.length) return;
   const [c] = musicCues.splice(i, 1);
@@ -2177,6 +2208,7 @@ function moveMusicCue(i, dir) {
 }
 
 function deleteMusicCue(i) {
+  if (isLocked()) return lockToast();
   const c = musicCues[i];
   if (!confirm('Delete music cue “' + c.name + '”? Its stored audio goes with it.\n(Undo is available for a few seconds afterwards.)')) return;
   if (alertCueId === c.id) hideMusicAlert();
@@ -2368,6 +2400,10 @@ async function deleteShowById(id) {
   }
   const s = showReg.list.find(x => x.id === id);
   if (!s) return;
+  if (s.locked) {
+    toast('“' + s.name + '” is locked 🔒 — unlock it before deleting.');
+    return;
+  }
   if (!confirm('Delete show “' + s.name + '” — its script, music cues, settings and stored audio? This cannot be undone.')) return;
   ['cues', 'index', 'settings', 'name', 'music'].forEach(k => {
     try { localStorage.removeItem('subtitleTool.show.' + id + '.' + k); } catch (e) {}
@@ -2414,8 +2450,22 @@ function renderShowCards() {
       cur.textContent = '● current';
       card.appendChild(cur);
     }
+    if (s.locked) name.textContent = s.name + ' 🔒';
     const acts = document.createElement('div');
     acts.className = 'sacts';
+    const lk = document.createElement('button');
+    lk.textContent = s.locked ? '🔓' : '🔒';
+    lk.title = s.locked ? 'Unlock this show (allow changes)' : 'Lock this show (run only, no changes)';
+    lk.tabIndex = -1;
+    lk.addEventListener('click', e => {
+      e.stopPropagation();
+      s.locked = !s.locked;
+      saveShowReg();
+      renderShowUI();
+      toast(s.locked ? '“' + s.name + '” locked — it can be run but not changed.'
+                     : '“' + s.name + '” unlocked.');
+    });
+    acts.appendChild(lk);
     const dl = document.createElement('button');
     dl.textContent = '⇩';
     dl.title = 'Export show bundle (script + music + audio)';
@@ -2481,7 +2531,8 @@ function renderShowUI() {
     sel.appendChild(o);
   });
   sel.value = String(showId);
-  $('showLabel').textContent = currentShowName();
+  $('showLabel').textContent = currentShowName() + (isLocked() ? ' 🔒' : '');
+  document.body.classList.toggle('show-locked', isLocked());
   renderShowCards();
 }
 
@@ -2600,6 +2651,7 @@ async function exportShowBundle(id) {
     payload = {
       kind: 'cueTheShowBundle', version: 2,
       name: s.name,
+      locked: !!s.locked,
       scriptName: g('name') || '',
       cues: JSON.parse(g('cues') || '[]') || [],
       index: parseInt(g('index') || '-1', 10),
@@ -2659,7 +2711,7 @@ async function importShowBundle(file) {
       const cid = parseInt(ename.slice(6), 10);
       if (!isNaN(cid)) await audioPut('s' + id + 'a' + cid, new Blob([data], { type: mimeFor(cid) }));
     }
-    showReg.list.push({ id, name });
+    showReg.list.push({ id, name, locked: !!payload.locked });
     saveShowReg();
     status.textContent = '';
     await switchShow(id);
@@ -2776,7 +2828,7 @@ function applyMode() {
   $('hintSubs').style.display = appMode === 'music' ? 'none' : '';
   $('hintOut').style.display = appMode === 'music' ? 'none' : '';
   $('hintMusic').style.display = appMode === 'subtitles' ? 'none' : '';
-  const titleEl = document.querySelector('#topBar .title');
+  const titleEl = $('titleText');
   if (!applyMode._baseTitle) applyMode._baseTitle = titleEl.textContent;
   titleEl.textContent = appMode === 'music' ? 'CueTheShow · Music' : applyMode._baseTitle;
   $('modeCtl').value = appMode;
@@ -2875,6 +2927,7 @@ function refreshResumeBtn() {
 }
 
 function clearSavedData() {
+  if (isLocked()) return lockToast();
   if (!confirm('Clear all data of show “' + currentShowName() + '” (cues, edits, position, music cues and their audio) and reset its styling? Other shows and exported .cues.json files are not affected.')) return;
   try {
     Object.values(LS).forEach(k => localStorage.removeItem(k));
@@ -2907,7 +2960,12 @@ async function handleFile(file) {
   status.textContent = 'Reading ' + file.name + '…';
 
   if (/\.(zip|cueshow)$/i.test(file.name) || (file.type || '') === 'application/zip') {
-    importShowBundle(file);
+    importShowBundle(file);   // bundles create a new show — allowed even when locked
+    return;
+  }
+  if (isLocked()) {
+    status.classList.add('error');
+    status.textContent = 'This show is locked 🔒 — unlock it to load a script, or import a bundle as a new show.';
     return;
   }
 
@@ -2988,6 +3046,7 @@ async function handleFile(file) {
 }
 
 function handlePastedText(raw) {
+  if (isLocked()) return lockToast();
   const status = $('loadStatus');
   status.classList.remove('error');
   if (!raw.trim()) {
@@ -3061,8 +3120,8 @@ window.addEventListener('beforeunload', e => {
 
   if (!PDF_AVAILABLE) {
     document.title = 'CueTheShow Lite';
-    document.querySelectorAll('#topBar .title')[0].textContent = 'CueTheShow Lite';
-    document.querySelector('#loadScreen h1').textContent = 'CueTheShow Lite';
+    $('titleText').textContent = 'CueTheShow Lite';
+    $('h1Text').textContent = 'CueTheShow Lite';
     document.querySelector('#dropZone strong').textContent = 'Drop a .cues.json or show bundle here';
     document.querySelector('#dropZone span').textContent = '(exported from the full version or from this one)';
     document.querySelector('#loadScreen .sub').textContent =
