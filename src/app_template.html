@@ -53,10 +53,10 @@
     align-items: center; gap: 22px; padding: 30px;
     overflow-y: auto;
   }
-  /* Auto-margins center the content when it fits, but unlike
-     justify-content:center they never clip the top on overflow. */
-  #loadScreen > :first-child { margin-top: auto; }
-  #loadScreen > :last-child { margin-bottom: auto; }
+  /* Flex spacers center the content when it fits, but unlike
+     justify-content:center they never clip the top on overflow —
+     and unlike auto margins they can't lose cascade fights. */
+  #loadScreen::before, #loadScreen::after { content: ''; flex: 1 0 0; }
   #loadScreen h1 { font-size: 26px; font-weight: 600; margin: 0; }
   #loadScreen .sub { color: var(--dim); margin: 0; max-width: 520px; text-align: center; }
   #dropZone {
