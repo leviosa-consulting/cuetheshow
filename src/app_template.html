@@ -71,8 +71,19 @@
   #loadStatus { min-height: 22px; color: var(--dim); }
   #loadStatus.error { color: var(--danger); }
   #resumeBtn { display: none; }
-  #clearBtn { display: none; color: var(--dim); font-size: 12px; padding: 5px 12px; }
-  #clearBtn:hover { color: var(--danger); border-color: var(--danger); background: var(--panel2); }
+  #resumeBtn, #musicOnlyBtn { font-size: 15px; padding: 12px 26px; }
+  #showTools { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #showTools button { color: var(--dim); font-size: 13px; padding: 7px 14px; }
+  #showTools button:hover { color: var(--text); }
+  #utilRow { display: flex; gap: 22px; }
+  #utilRow button {
+    background: none; border: none; padding: 0; cursor: pointer;
+    color: var(--dim); font-size: 12px;
+    text-decoration: underline; text-underline-offset: 3px;
+  }
+  #utilRow button:hover { color: var(--text); background: none; }
+  #utilRow #clearBtn:hover { color: var(--danger); }
+  #clearBtn { display: none; }
   #pasteWrap { width: min(560px, 90vw); display: flex; flex-direction: column; gap: 8px; }
   #pasteBox {
     font: inherit; color: var(--text); background: var(--panel);
@@ -85,8 +96,6 @@
     display: none; flex-direction: column; align-items: center; gap: 22px; width: 100%;
   }
   #scriptIntake.open { display: flex; }
-  #addScriptBtn { color: var(--dim); font-size: 13px; padding: 7px 16px; }
-  #addScriptBtn:hover { color: var(--text); }
 
   /* ---------- Console ---------- */
   /* 100% of body (not 100vh): body always equals the real window even
@@ -294,19 +303,28 @@
   .showCard:hover { border-color: var(--accent); transform: translateY(-2px); }
   .showCard.cur { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
   .showCard .sname {
-    font-weight: 600; font-size: 15px; margin-bottom: 4px;
+    font-weight: 600; font-size: 15px; margin-bottom: 4px; padding-right: 34px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .showCard .sstats { color: var(--dim); font-size: 12px; }
   .showCard .scur { color: var(--accent); font-size: 11px; margin-top: 3px; }
-  .showCard .sacts { display: flex; gap: 6px; margin-top: 10px; visibility: hidden; }
-  .showCard:hover .sacts, body.touch .showCard .sacts { visibility: visible; }
-  .sacts button {
-    background: var(--panel2); border: 1px solid var(--border); border-radius: 6px;
-    color: var(--dim); cursor: pointer; padding: 5px 11px; font-size: 16px; line-height: 1;
+  .cmenuBtn {
+    position: absolute; top: 8px; right: 8px; line-height: 1;
+    background: none; border: 1px solid transparent; border-radius: 6px;
+    color: var(--dim); font-size: 18px; padding: 3px 9px; cursor: pointer;
   }
-  .sacts button:hover { color: var(--text); border-color: var(--accent); background: var(--panel2); }
-  .sacts button.sdel:hover { color: var(--danger); border-color: var(--danger); }
+  .cmenuBtn:hover { border-color: var(--border); background: var(--panel2); color: var(--text); }
+  #cardMenu {
+    position: absolute; display: none; z-index: 40; min-width: 200px;
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 5px; box-shadow: 0 8px 24px rgba(0, 0, 0, .5); margin: 0;
+  }
+  #cardMenu button {
+    display: block; width: 100%; text-align: left; background: none; border: none;
+    color: var(--text); font-size: 13px; padding: 8px 12px; border-radius: 5px; cursor: pointer;
+  }
+  #cardMenu button:hover { background: var(--accent-soft); }
+  #cardMenu button.danger { color: var(--danger); }
   .showCard.newCard {
     display: flex; align-items: center; justify-content: center;
     color: var(--dim); border-style: dashed; min-height: 62px; font-size: 14px;
@@ -350,7 +368,6 @@
     color: #333; font-size: 20px; padding: 6px 10px; cursor: pointer;
   }
   #displayExit:hover { color: var(--dim); }
-  #musicOnlyBtn, #printBtn, #displayBtn, #pdfDeckBtn { color: var(--dim); font-size: 12px; padding: 5px 12px; }
   body.mode-music #cueCounter { display: none; }
   body.mode-subs #rightTabs { display: none; }
   body.mode-subs #musicAlert { display: none !important; }
@@ -502,7 +519,14 @@
 <div id="loadScreen">
   <h1><svg class="logoMark" viewBox="0 0 100 100" aria-hidden="true"><polygon points="26,18 88,50 26,82" fill="#5b9dd9"/><circle cx="80" cy="22" r="10" fill="#6fbf85"/></svg><span id="h1Text">CueTheShow</span></h1>
   <div id="showCards"></div>
-  <button id="addScriptBtn" tabindex="-1">📄 Add a script for subtitles (PDF or pasted text)</button>
+  <div id="cardMenu"></div>
+  <button id="resumeBtn" class="primary"></button>
+  <button id="musicOnlyBtn" class="primary">Open the console (no script needed yet)</button>
+  <div id="showTools">
+    <button id="addScriptBtn" tabindex="-1" title="PDF or pasted text. It becomes subtitle cues.">📄 Add a script</button>
+    <button id="printBtn" tabindex="-1">🖨 Print cue sheet</button>
+    <button id="pdfDeckBtn" tabindex="-1" title="One page per cue. Works in any PDF viewer.">📽 Subtitles as PDF</button>
+  </div>
   <div id="scriptIntake">
   <p class="sub">A script becomes subtitle cues of about 8 words (12 at most).
      A new sentence always starts on a fresh screen.</p>
@@ -521,16 +545,14 @@
      Italics already in the PDF carry over automatically.</p>
   </div>
   <input type="file" id="fileInput" accept=".pdf,.json,.zip,application/pdf,application/json,application/zip" style="display:none">
-  <button id="resumeBtn" class="primary"></button>
-  <button id="musicOnlyBtn">Continue without a script (you can add one later)</button>
-  <button id="printBtn" tabindex="-1">🖨 Print cue sheet</button>
-  <button id="pdfDeckBtn" tabindex="-1">📽 Export subtitles as a PDF (one page per cue, works in any PDF viewer)</button>
-  <button id="displayBtn" tabindex="-1">🖵 Use this screen as a display for another console's subtitles</button>
-  <button id="clearBtn">Clear saved show data</button>
+  <div id="utilRow">
+    <button id="displayBtn" tabindex="-1" title="Shows a 4-letter code. A console anywhere can cast its subtitles here.">Use this screen as a display</button>
+    <button id="clearBtn">Clear saved show data</button>
+  </div>
   <div id="loadStatus"></div>
   <p class="sub" id="aboutLine" style="font-size:12px">Free and open source (MIT).
      Runs entirely in your browser: your script and audio never leave this device.
-     <a id="dlLink" href="cuetheshow-offline.html" download="cuetheshow.html">download offline copy</a> ·
+     <a id="dlLink" href="cuetheshow-offline.html" download="cuetheshow.html">download offline copy</a><span id="dlSep"> · </span>
      <a href="https://github.com/leviosa-consulting/cuetheshow" target="_blank" rel="noopener">source</a></p>
 
 </div>
@@ -1564,9 +1586,12 @@ function bindControls() {
   $('helpOverlay').addEventListener('click', e => {
     if (e.target.id === 'helpOverlay') e.currentTarget.classList.remove('on');
   });
+  document.addEventListener('click', closeCardMenu);
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    if ($('helpOverlay').classList.contains('on')) {
+    if ($('cardMenu').style.display === 'block') {
+      closeCardMenu();
+    } else if ($('helpOverlay').classList.contains('on')) {
       $('helpOverlay').classList.remove('on');
     } else if (displayActive) {
       stopDisplay();
@@ -2491,7 +2516,55 @@ function showStats(id) {
   return { subs, mus };
 }
 
+function toggleCardMenu(s, anchor) {
+  const m = $('cardMenu');
+  if (m.style.display === 'block' && m._for === s.id) {
+    closeCardMenu();
+    return;
+  }
+  m._for = s.id;
+  m.innerHTML = '';
+  const item = (label, fn, danger) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    if (danger) b.classList.add('danger');
+    b.tabIndex = -1;
+    b.addEventListener('click', e => {
+      e.stopPropagation();
+      closeCardMenu();
+      fn();
+    });
+    m.appendChild(b);
+  };
+  item(s.locked ? '🔓 Unlock show' : '🔒 Lock show', () => {
+    s.locked = !s.locked;
+    saveShowReg();
+    renderShowUI();
+    toast(s.locked ? '“' + s.name + '” is locked. It can be run but not changed.'
+                   : '“' + s.name + '” unlocked.');
+  });
+  item('⇩ Export show file', () => exportShowBundle(s.id));
+  item('✎ Rename show', () => {
+    const n = prompt('Rename show:', s.name);
+    if (n !== null) renameShowById(s.id, n);
+  });
+  if (showReg.list.length > 1) item('× Delete show', () => deleteShowById(s.id), true);
+  const ls = $('loadScreen');
+  const r = anchor.getBoundingClientRect();
+  const lr = ls.getBoundingClientRect();
+  m.style.display = 'block';
+  m.style.left = Math.max(8, Math.min(r.left - lr.left + ls.scrollLeft, ls.clientWidth - 216)) + 'px';
+  m.style.top = (r.bottom - lr.top + ls.scrollTop + 6) + 'px';
+}
+
+function closeCardMenu() {
+  const m = $('cardMenu');
+  m.style.display = 'none';
+  m._for = null;
+}
+
 function renderShowCards() {
+  closeCardMenu();
   const grid = $('showCards');
   if (!grid || !showReg) return;
   grid.innerHTML = '';
@@ -2514,53 +2587,16 @@ function renderShowCards() {
       card.appendChild(cur);
     }
     if (s.locked) name.textContent = s.name + ' 🔒';
-    const acts = document.createElement('div');
-    acts.className = 'sacts';
-    const lk = document.createElement('button');
-    lk.textContent = s.locked ? '🔓' : '🔒';
-    lk.title = s.locked ? 'Unlock this show (allow changes)' : 'Lock this show (run only, no changes)';
-    lk.tabIndex = -1;
-    lk.addEventListener('click', e => {
+    const menuBtn = document.createElement('button');
+    menuBtn.className = 'cmenuBtn';
+    menuBtn.textContent = '⋯';
+    menuBtn.title = 'Show options';
+    menuBtn.tabIndex = -1;
+    menuBtn.addEventListener('click', e => {
       e.stopPropagation();
-      s.locked = !s.locked;
-      saveShowReg();
-      renderShowUI();
-      toast(s.locked ? '“' + s.name + '” is locked. It can be run but not changed.'
-                     : '“' + s.name + '” unlocked.');
+      toggleCardMenu(s, menuBtn);
     });
-    acts.appendChild(lk);
-    const dl = document.createElement('button');
-    dl.textContent = '⇩';
-    dl.title = 'Export show bundle (script + music + audio)';
-    dl.tabIndex = -1;
-    dl.addEventListener('click', e => {
-      e.stopPropagation();
-      exportShowBundle(s.id);
-    });
-    acts.appendChild(dl);
-    const ren = document.createElement('button');
-    ren.textContent = '✎';
-    ren.title = 'Rename show';
-    ren.tabIndex = -1;
-    ren.addEventListener('click', e => {
-      e.stopPropagation();
-      const n = prompt('Rename show:', s.name);
-      if (n !== null) renameShowById(s.id, n);
-    });
-    acts.appendChild(ren);
-    if (showReg.list.length > 1) {
-      const del = document.createElement('button');
-      del.textContent = '×';
-      del.className = 'sdel';
-      del.title = 'Delete show';
-      del.tabIndex = -1;
-      del.addEventListener('click', e => {
-        e.stopPropagation();
-        deleteShowById(s.id);
-      });
-      acts.appendChild(del);
-    }
-    card.appendChild(acts);
+    card.appendChild(menuBtn);
     card.addEventListener('click', () => {
       if (s.id === showId) {
         if (cues.length || appMode === 'music') {
@@ -3217,6 +3253,7 @@ function refreshResumeBtn() {
     btn.style.display = 'none';
   }
   $('clearBtn').style.display = (saved && saved.length) ? 'inline-block' : 'none';
+  $('musicOnlyBtn').style.display = (saved && saved.length) ? 'none' : '';
 }
 
 function clearSavedData() {
@@ -3397,7 +3434,9 @@ window.addEventListener('beforeunload', e => {
   }
   if (!/^https?:$/.test(location.protocol)) {
     const d = document.getElementById('dlLink');
+    const ds = document.getElementById('dlSep');
     if (d) d.style.display = 'none';   // download link only makes sense hosted
+    if (ds) ds.style.display = 'none';
   }
   if (navigator.maxTouchPoints > 0 || 'ontouchstart' in window ||
       (window.matchMedia && matchMedia('(pointer: coarse)').matches)) {
