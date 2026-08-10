@@ -262,12 +262,11 @@
   }
   #setupPanel .label { font-size: 11px; letter-spacing: .1em; color: var(--dim); font-weight: 700; margin-right: 4px; }
   #modeWrap { margin-left: auto; display: flex; align-items: center; gap: 7px; color: var(--dim); font-size: 12px; }
-  #modeWrap select, #showWrap select, #showRow select {
+  #modeWrap select {
     font: inherit; font-size: 13px; color: var(--text); background: var(--panel2);
     border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; cursor: pointer;
     max-width: 180px;
   }
-  #showWrap { display: flex; align-items: center; gap: 7px; color: var(--dim); font-size: 12px; }
   #showsBtn {
     display: flex; align-items: center; gap: 8px;
     background: var(--panel2); border: 1px solid var(--border); color: var(--text);
@@ -318,7 +317,7 @@
   body.mode-music #cueCounter { display: none; }
   body.mode-subs #rightTabs { display: none; }
   body.mode-subs #musicAlert { display: none !important; }
-  #musicOnlyBtn { color: var(--dim); font-size: 12px; padding: 5px 12px; }
+  #musicOnlyBtn, #printBtn { color: var(--dim); font-size: 12px; padding: 5px 12px; }
   #keysHint { text-align: center; color: var(--dim); font-size: 12px; padding-bottom: 4px; }
   /* A locked show runs but does not change. */
   body.show-locked .cueItem .add, body.show-locked .cueItem .del,
@@ -475,6 +474,7 @@
   <input type="file" id="fileInput" accept=".pdf,.json,.zip,application/pdf,application/json,application/zip" style="display:none">
   <button id="resumeBtn" class="primary"></button>
   <button id="musicOnlyBtn">Continue without a script — music runs fine alone</button>
+  <button id="printBtn" tabindex="-1">🖨 Print cue sheet</button>
   <button id="clearBtn">Clear saved show data</button>
   <div id="loadStatus"></div>
   <p class="sub" id="aboutLine" style="font-size:12px">Free &amp; open source (MIT) ·
@@ -549,15 +549,9 @@
 
       <div id="setupPanel">
         <span class="label">SETUP</span>
-        <label id="showWrap">Show
-          <select id="showCtl"></select>
-        </label>
-        <button id="showNewBtn" tabindex="-1">＋ New show</button>
-        <button id="exportBtn" tabindex="-1" title="One file with script, music cues, settings and audio">Export show</button>
         <button id="newPdfBtn">Load new script</button>
         <button id="testCardBtn" tabindex="-1">Test card</button>
-        <button id="printBtn" tabindex="-1">Print cue sheet</button>
-        <label id="modeWrap">UI size
+        <label id="modeWrap">Zoom
           <select id="uiScaleCtl">
             <option value="90">90%</option>
             <option value="100">100%</option>
@@ -565,7 +559,7 @@
             <option value="125">125%</option>
             <option value="150">150%</option>
           </select>
-          &nbsp;Console mode
+          &nbsp;Mode
           <select id="modeCtl">
             <option value="music">Music only</option>
             <option value="full">Music + subtitles</option>
@@ -1488,7 +1482,6 @@ function bindControls() {
   $('nextBtn').addEventListener('click', () => { next(); document.activeElement.blur(); });
   $('blankBtn').addEventListener('click', () => { toggleBlank(); document.activeElement.blur(); });
   $('openOutputBtn').addEventListener('click', openOutput);
-  $('exportBtn').addEventListener('click', () => { exportShowBundle(showId); document.activeElement.blur(); });
   $('testCardBtn').addEventListener('click', () => {
     toggleTestCard();
     document.activeElement.blur();
@@ -2522,15 +2515,6 @@ function renderShowCards() {
 }
 
 function renderShowUI() {
-  const sel = $('showCtl');
-  sel.innerHTML = '';
-  showReg.list.forEach(s => {
-    const o = document.createElement('option');
-    o.value = s.id;
-    o.textContent = s.name;
-    sel.appendChild(o);
-  });
-  sel.value = String(showId);
   $('showLabel').textContent = currentShowName() + (isLocked() ? ' 🔒' : '');
   document.body.classList.toggle('show-locked', isLocked());
   renderShowCards();
@@ -2540,14 +2524,6 @@ function bindShowUI() {
   $('showsBtn').addEventListener('click', () => {
     showLoadScreen();
     document.activeElement.blur();
-  });
-  $('showCtl').addEventListener('change', e => {
-    switchShow(e.target.value);
-    document.activeElement.blur();
-  });
-  $('showNewBtn').addEventListener('click', () => {
-    const n = prompt('Name for the new show?', 'Untitled show');
-    if (n !== null) newShow(n);
   });
 }
 
@@ -2903,6 +2879,7 @@ function showLoadScreen(withScriptIntake) {
   $('console').classList.remove('active');
   $('loadScreen').style.display = 'flex';
   $('scriptIntake').classList.toggle('open', !!withScriptIntake);
+  $('printBtn').style.display = (cues.length || musicCues.length) ? '' : 'none';
   refreshResumeBtn();
   if (showReg) renderShowCards();
 }
