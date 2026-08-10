@@ -2,7 +2,7 @@
 
 **Free music & subtitle cue console for live performance — in one browser tab.**
 
-🔗 **Use it now: [cuetheshow.gbsims.com](https://cuetheshow.gbsims.com)** (permanent home cuetheshow.com coming) — nothing to install, no account, free forever.
+🔗 **Use it now: [cuetheshow.com](https://cuetheshow.com)** — nothing to install, no account, free forever.
 
 Built for small theatre and dance productions where one person runs everything: fire music
 and sound cues from a laptop or phone — and, when the show needs them, project subtitles too.
