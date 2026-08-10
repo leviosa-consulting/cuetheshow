@@ -597,7 +597,8 @@
   <p class="sub" id="aboutLine" style="font-size:12px">Free and open source (MIT).
      Runs entirely in your browser: your script and audio never leave this device.
      <a id="dlLink" href="cuetheshow-offline.html" download="cuetheshow.html">download offline copy</a><span id="dlSep"> · </span>
-     <a href="https://github.com/leviosa-consulting/cuetheshow" target="_blank" rel="noopener">source</a></p>
+     <a href="https://github.com/leviosa-consulting/cuetheshow" target="_blank" rel="noopener">source</a> ·
+     <a id="coffeeLink" href="coffee.html" target="_blank" rel="noopener">buy the author a coffee</a></p>
 
 </div>
 
@@ -3583,6 +3584,8 @@ window.addEventListener('beforeunload', e => {
     const ds = document.getElementById('dlSep');
     if (d) d.style.display = 'none';   // download link only makes sense hosted
     if (ds) ds.style.display = 'none';
+    const cl = document.getElementById('coffeeLink');
+    if (cl) cl.href = 'https://cuetheshow.com/coffee.html';
   }
   if (navigator.maxTouchPoints > 0 || 'ontouchstart' in window ||
       (window.matchMedia && matchMedia('(pointer: coarse)').matches)) {
