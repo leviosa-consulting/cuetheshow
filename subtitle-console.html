@@ -391,6 +391,28 @@
     0%, 100% { box-shadow: 0 0 0 0 rgba(91, 157, 217, .55); }
     50% { box-shadow: 0 0 0 8px rgba(91, 157, 217, 0); }
   }
+  #modal {
+    position: absolute; inset: 0; display: none; z-index: 80;
+    background: rgba(10, 11, 14, .72); padding: 20px;
+    align-items: center; justify-content: center;
+  }
+  #modal.on { display: flex; }
+  #modalBox {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px 22px; max-width: 460px; width: 100%;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .55);
+  }
+  #modalMsg { white-space: pre-line; line-height: 1.55; margin-bottom: 16px; }
+  #modalInput {
+    width: 100%; font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;
+    margin-bottom: 16px; display: none;
+  }
+  #modalInput:focus { outline: none; border-color: var(--accent); }
+  #modalBtns { display: flex; gap: 10px; justify-content: flex-end; }
+  #modalBtns button { padding: 8px 18px; }
+  #modalOk.danger { background: #52201f; border-color: var(--danger); }
+  #modalOk.danger:hover { background: #6b2a28; }
   #helpOverlay {
     position: absolute; inset: 0; display: none; z-index: 60;
     background: rgba(10, 11, 14, .72); overflow-y: auto; padding: 30px 16px;
@@ -422,7 +444,29 @@
   body.touch #helpBox table, body.touch #helpBox .hkeys { display: none; }
   body.touch .htouch { display: inline; }
   @media (max-width: 820px) {
-    #helpOverlay { padding: 14px 10px; }
+    #modal {
+    position: absolute; inset: 0; display: none; z-index: 80;
+    background: rgba(10, 11, 14, .72); padding: 20px;
+    align-items: center; justify-content: center;
+  }
+  #modal.on { display: flex; }
+  #modalBox {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px 22px; max-width: 460px; width: 100%;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .55);
+  }
+  #modalMsg { white-space: pre-line; line-height: 1.55; margin-bottom: 16px; }
+  #modalInput {
+    width: 100%; font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;
+    margin-bottom: 16px; display: none;
+  }
+  #modalInput:focus { outline: none; border-color: var(--accent); }
+  #modalBtns { display: flex; gap: 10px; justify-content: flex-end; }
+  #modalBtns button { padding: 8px 18px; }
+  #modalOk.danger { background: #52201f; border-color: var(--danger); }
+  #modalOk.danger:hover { background: #6b2a28; }
+  #helpOverlay { padding: 14px 10px; }
     #helpBox { padding: 18px 16px; margin-top: 1vh; }
   }
 
@@ -684,6 +728,17 @@
   </div>
   <div id="dispDot"></div>
   <button id="displayExit" title="Stop being a display">×</button>
+</div>
+
+<div id="modal">
+  <div id="modalBox">
+    <div id="modalMsg"></div>
+    <input id="modalInput" type="text">
+    <div id="modalBtns">
+      <button id="modalCancel" tabindex="-1">Cancel</button>
+      <button id="modalOk" class="primary" tabindex="-1">OK</button>
+    </div>
+  </div>
 </div>
 
 <div id="helpOverlay">
@@ -1397,12 +1452,12 @@ function buildCueList() {
   list.appendChild(frag);
 }
 
-function deleteCue(i, silent) {
+async function deleteCue(i, silent) {
   if (isLocked()) return lockToast();
   // silent = internal cleanup (abandoned empty insert) — no dialog, no toast
   if (!silent) {
     const preview = cues[i].text.length > 60 ? cues[i].text.slice(0, 60) + '…' : cues[i].text;
-    if (!confirm('Delete cue ' + (i + 1) + ': “' + preview + '”?\n(Undo is available for a few seconds afterwards.)')) return;
+    if (!(await ctsConfirm('Delete cue ' + (i + 1) + ': “' + preview + '”?\n(Undo is available for a few seconds afterwards.)', 'Delete', true))) return;
   }
   const removed = cues[i];
   const wasIndex = index;
@@ -1527,6 +1582,7 @@ function toggleBlank() {
 }
 
 function handleKey(e) {
+  if ($('modal').classList.contains('on')) return;
   const t = e.target;
   if (t && t.matches && t.matches('textarea, input, select')) return;
   if (!$('console').classList.contains('active')) return;
@@ -1594,16 +1650,16 @@ function bindControls() {
     toggleTestCard();
     document.activeElement.blur();
   });
-  $('castBtn').addEventListener('click', () => {
+  $('castBtn').addEventListener('click', async () => {
     if (castCode) {
       castDisconnect();
     } else {
-      const c = prompt(
+      const c = await ctsPrompt(
         'Show subtitles on ANOTHER machine:\n\n' +
         '1. On that machine, open ' + location.host + '\n' +
-        '2. Tap the show name (top-left) → “🖵 Be a display”\n' +
+        '2. Tap the show name (top left), then “Use this screen as a display”\n' +
         '3. A 4-letter code appears on its screen\n\n' +
-        'Enter that code:');
+        'Enter that code:', '', 'Cast');
       if (c) castConnect(c);
     }
     document.activeElement.blur();
@@ -1631,7 +1687,9 @@ function bindControls() {
   document.addEventListener('click', closeCardMenu);
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    if ($('cardMenu').style.display === 'block') {
+    if ($('modal').classList.contains('on')) {
+      closeModal(false);
+    } else if ($('cardMenu').style.display === 'block') {
       closeCardMenu();
     } else if ($('helpOverlay').classList.contains('on')) {
       $('helpOverlay').classList.remove('on');
@@ -2337,10 +2395,10 @@ function moveMusicCue(i, dir) {
   renderMusic();
 }
 
-function deleteMusicCue(i) {
+async function deleteMusicCue(i) {
   if (isLocked()) return lockToast();
   const c = musicCues[i];
-  if (!confirm('Delete music cue “' + c.name + '”? Its stored audio goes with it.\n(Undo is available for a few seconds afterwards.)')) return;
+  if (!(await ctsConfirm('Delete music cue “' + c.name + '”? Its stored audio goes with it.\n(Undo is available for a few seconds afterwards.)', 'Delete', true))) return;
   if (alertCueId === c.id) hideMusicAlert();
   musicCues.splice(i, 1);
   const wasStandby = musicStandby;
@@ -2534,7 +2592,7 @@ async function deleteShowById(id) {
     toast('“' + s.name + '” is locked 🔒. Unlock it before deleting.');
     return;
   }
-  if (!confirm('Delete show “' + s.name + '”? Its script, music cues, settings and stored audio will be removed. This cannot be undone.')) return;
+  if (!(await ctsConfirm('Delete show “' + s.name + '”? Its script, music cues, settings and stored audio will be removed. This cannot be undone.', 'Delete show', true))) return;
   ['cues', 'index', 'settings', 'name', 'music'].forEach(k => {
     try { localStorage.removeItem('subtitleTool.show.' + id + '.' + k); } catch (e) {}
   });
@@ -2586,8 +2644,8 @@ function toggleCardMenu(s, anchor) {
                    : '“' + s.name + '” unlocked.');
   });
   item('⇩ Export show file', () => exportShowBundle(s.id));
-  item('✎ Rename show', () => {
-    const n = prompt('Rename show:', s.name);
+  item('✎ Rename show', async () => {
+    const n = await ctsPrompt('Rename show:', s.name, 'Rename');
     if (n !== null) renameShowById(s.id, n);
   });
   if (showReg.list.length > 1) item('× Delete show', () => deleteShowById(s.id), true);
@@ -2655,8 +2713,8 @@ function renderShowCards() {
   const add = document.createElement('div');
   add.className = 'showCard newCard';
   add.textContent = '＋ New show';
-  add.addEventListener('click', () => {
-    const n = prompt('Name for the new show?', 'Untitled show');
+  add.addEventListener('click', async () => {
+    const n = await ctsPrompt('Name for the new show?', 'Untitled show', 'Create');
     if (n !== null) newShow(n);
   });
   grid.appendChild(add);
@@ -3224,6 +3282,52 @@ function applyMode() {
 /* ================================================================
    Screens / startup
    ================================================================ */
+let modalResolve = null;
+
+function ctsDialog(opts) {
+  return new Promise(res => {
+    modalResolve = { res, hasInput: opts.input != null };
+    $('modalMsg').textContent = opts.msg;
+    const inp = $('modalInput');
+    if (opts.input != null) {
+      inp.style.display = 'block';
+      inp.value = opts.input;
+    } else {
+      inp.style.display = 'none';
+    }
+    $('modalOk').textContent = opts.okLabel || 'OK';
+    $('modalOk').classList.toggle('danger', !!opts.danger);
+    $('modal').classList.add('on');
+    setTimeout(() => {
+      if (opts.input != null) { inp.focus(); inp.select(); }
+      else $('modalOk').focus();
+    }, 40);
+  });
+}
+
+function closeModal(ok) {
+  if (!modalResolve) return;
+  const { res, hasInput } = modalResolve;
+  modalResolve = null;
+  $('modal').classList.remove('on');
+  if (hasInput) res(ok ? $('modalInput').value : null);
+  else res(!!ok);
+}
+
+const ctsConfirm = (msg, okLabel, danger) => ctsDialog({ msg, okLabel, danger });
+const ctsPrompt = (msg, def, okLabel) => ctsDialog({ msg, input: def == null ? '' : def, okLabel });
+
+function bindModal() {
+  $('modalOk').addEventListener('click', () => closeModal(true));
+  $('modalCancel').addEventListener('click', () => closeModal(false));
+  $('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(false); });
+  $('modalInput').addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter') closeModal(true);
+    if (e.key === 'Escape') closeModal(false);
+  });
+}
+
 function toast(msg, action) {
   const t = $('toast');
   t.innerHTML = '';
@@ -3298,9 +3402,9 @@ function refreshResumeBtn() {
   $('musicOnlyBtn').style.display = (saved && saved.length) ? 'none' : '';
 }
 
-function clearSavedData() {
+async function clearSavedData() {
   if (isLocked()) return lockToast();
-  if (!confirm('Clear all data of show “' + currentShowName() + '” (cues, edits, position, music cues and their audio) and reset its styling? Other shows and exported .cues.json files are not affected.')) return;
+  if (!(await ctsConfirm('Clear all data of show “' + currentShowName() + '” (cues, edits, position, music cues and their audio) and reset its styling? Other shows and exported .cues.json files are not affected.', 'Clear data', true))) return;
   try {
     Object.values(LS).forEach(k => localStorage.removeItem(k));
     localStorage.removeItem(MUSIC_LS);
@@ -3505,6 +3609,7 @@ window.addEventListener('beforeunload', e => {
   }
 
   await initShows();
+  bindModal();
   bindLoadScreen();
   bindControls();
   bindMusic();
