@@ -316,11 +316,40 @@
   body.mode-music #rightTabs { display: none; }
   body.mode-music #musicTab { max-width: 680px; width: 100%; margin: 0 auto; }
   body.mode-music #openOutputBtn, body.mode-music #newPdfBtn,
-  body.mode-music #testCardBtn { display: none; }
+  body.mode-music #testCardBtn, body.mode-music #castBtn { display: none; }
+  #castBtn.on { background: var(--accent-soft); border-color: var(--accent); }
+  #displayStage {
+    position: absolute; inset: 0; display: none; z-index: 70; background: #000;
+  }
+  #displayStage.paired { cursor: none; }
+  #displayText { position: absolute; left: 4%; right: 4%; margin: 0; white-space: pre-wrap; }
+  #displayTC { position: absolute; inset: 0; display: none; }
+  #displayWait {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 22px; text-align: center;
+    color: var(--dim); padding: 20px;
+  }
+  #displayStage.paired #displayWait { display: none; }
+  #displayWait .dtitle { font-size: 15px; letter-spacing: .06em; }
+  #displayWait .dcode {
+    font-size: clamp(64px, 18vw, 160px); font-weight: 700; letter-spacing: .18em;
+    color: var(--text); font-variant-numeric: tabular-nums;
+  }
+  #displayWait .dhint { font-size: 15px; line-height: 1.7; }
+  #dispDot {
+    position: absolute; top: 12px; left: 12px; width: 9px; height: 9px;
+    border-radius: 50%; background: var(--danger); opacity: .65; display: none;
+  }
+  #displayStage.disconnected #dispDot { display: block; }
+  #displayExit {
+    position: absolute; top: 8px; right: 10px; background: none; border: none;
+    color: #333; font-size: 20px; padding: 6px 10px; cursor: pointer;
+  }
+  #displayExit:hover { color: var(--dim); }
+  #musicOnlyBtn, #printBtn, #displayBtn, #pdfDeckBtn { color: var(--dim); font-size: 12px; padding: 5px 12px; }
   body.mode-music #cueCounter { display: none; }
   body.mode-subs #rightTabs { display: none; }
   body.mode-subs #musicAlert { display: none !important; }
-  #musicOnlyBtn, #printBtn { color: var(--dim); font-size: 12px; padding: 5px 12px; }
   #keysHint { text-align: center; color: var(--dim); font-size: 12px; padding-bottom: 4px; }
   /* A locked show runs but does not change. */
   body.show-locked .cueItem .add, body.show-locked .cueItem .del,
@@ -486,6 +515,8 @@
   <button id="resumeBtn" class="primary"></button>
   <button id="musicOnlyBtn">Continue without a script — music runs fine alone</button>
   <button id="printBtn" tabindex="-1">🖨 Print cue sheet</button>
+  <button id="pdfDeckBtn" tabindex="-1">📽 Export subtitles as a PDF deck — run the show from any PDF viewer</button>
+  <button id="displayBtn" tabindex="-1">🖵 Be a display — this screen shows a paired console's subtitles</button>
   <button id="clearBtn">Clear saved show data</button>
   <div id="loadStatus"></div>
   <p class="sub" id="aboutLine" style="font-size:12px">Free &amp; open source (MIT) ·
@@ -564,6 +595,7 @@
         <span class="label">SETUP</span>
         <button id="newPdfBtn">Load new script</button>
         <button id="testCardBtn" tabindex="-1">Test card</button>
+        <button id="castBtn" tabindex="-1">Cast to display</button>
         <label id="modeWrap">Zoom
           <select id="uiScaleCtl">
             <option value="90">90%</option>
@@ -610,6 +642,19 @@
       </div>
     </div>
   </div>
+</div>
+
+<div id="displayStage">
+  <p id="displayText"></p>
+  <div id="displayTC"></div>
+  <div id="displayWait">
+    <div class="dtitle">CueTheShow · paired display</div>
+    <div class="dcode">····</div>
+    <div class="dhint">On the console: SETUP → <strong>Cast to display</strong>, enter this code.<br>
+      Double-click here for fullscreen.</div>
+  </div>
+  <div id="dispDot"></div>
+  <button id="displayExit" title="Stop being a display">×</button>
 </div>
 
 <div id="helpOverlay">
@@ -1089,6 +1134,12 @@ function renderOutput() {
   if (tc) renderTestCard(stage, tc);
 }
 
+const _renderOutputLocal = renderOutput;
+renderOutput = function () {
+  _renderOutputLocal();
+  castState();
+};
+
 /* ================================================================
    Operator console rendering
    ================================================================ */
@@ -1460,6 +1511,22 @@ function bindControls() {
     toggleTestCard();
     document.activeElement.blur();
   });
+  $('castBtn').addEventListener('click', () => {
+    if (castCode) {
+      castDisconnect();
+    } else {
+      const c = prompt('Enter the 4-letter code shown on the display screen:');
+      if (c) castConnect(c);
+    }
+    document.activeElement.blur();
+  });
+  $('displayBtn').addEventListener('click', startDisplay);
+  $('pdfDeckBtn').addEventListener('click', () => { exportSubtitlePdf(); document.activeElement.blur(); });
+  $('displayExit').addEventListener('click', stopDisplay);
+  $('displayStage').addEventListener('dblclick', () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen().catch(() => {});
+  });
   $('printBtn').addEventListener('click', () => {
     printCueSheet();
     document.activeElement.blur();
@@ -1474,8 +1541,11 @@ function bindControls() {
     if (e.target.id === 'helpOverlay') e.currentTarget.classList.remove('on');
   });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && $('helpOverlay').classList.contains('on')) {
+    if (e.key !== 'Escape') return;
+    if ($('helpOverlay').classList.contains('on')) {
       $('helpOverlay').classList.remove('on');
+    } else if (displayActive) {
+      stopDisplay();
     }
   });
   $('modeCtl').addEventListener('change', e => {
@@ -2673,6 +2743,133 @@ async function importShowBundle(file) {
 }
 
 /* ================================================================
+   Paired display — a second machine renders the output; the console
+   streams state through an ephemeral relay (nothing stored).
+   ================================================================ */
+const RELAY_URL = new URLSearchParams(location.search).get('relay') ||
+  ((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+const RELAY_POSSIBLE = /^https?:$/.test(location.protocol) ||
+  new URLSearchParams(location.search).has('relay');
+const CAST_LS = 'subtitleTool.castCode';
+
+let castWs = null, castCode = '', castPeers = 0, castTimer = null;
+let dispWs = null, dispCode = '', dispRetry = null, displayActive = false;
+
+function castState() {
+  if (!castWs || castWs.readyState !== 1) return;
+  castWs.send(JSON.stringify({
+    t: 'state',
+    text: currentCueText(),
+    settings: settings,
+    tc: testCard,
+  }));
+}
+
+function castConnect(code) {
+  castCode = String(code || '').trim().toUpperCase();
+  if (!castCode) return;
+  try { localStorage.setItem(CAST_LS, castCode); } catch (e) {}
+  clearTimeout(castTimer);
+  if (castWs) { try { castWs.onclose = null; castWs.close(); } catch (e) {} }
+  castWs = new WebSocket(RELAY_URL);
+  castWs.onopen = () => {
+    castWs.send(JSON.stringify({ t: 'join', code: castCode }));
+    castState();
+    renderCastUI();
+  };
+  castWs.onmessage = ev => {
+    let m = {};
+    try { m = JSON.parse(ev.data); } catch (e) {}
+    if (m.t === 'peers') {
+      castPeers = m.displays || 0;
+      castState();
+      renderCastUI();
+    }
+  };
+  castWs.onclose = () => {
+    castPeers = 0;
+    renderCastUI();
+    if (castCode) castTimer = setTimeout(() => castConnect(castCode), 2000);
+  };
+  renderCastUI();
+}
+
+function castDisconnect() {
+  const was = castCode;
+  castCode = '';
+  castPeers = 0;
+  clearTimeout(castTimer);
+  try { localStorage.removeItem(CAST_LS); } catch (e) {}
+  if (castWs) { try { castWs.onclose = null; castWs.close(); } catch (e) {} }
+  castWs = null;
+  renderCastUI();
+  if (was) toast('Casting stopped.');
+}
+
+function renderCastUI() {
+  const b = $('castBtn');
+  if (!b) return;
+  if (castCode) {
+    b.classList.add('on');
+    b.textContent = 'Casting ' + castCode +
+      (castPeers ? ' · ' + castPeers + ' screen' + (castPeers > 1 ? 's' : '') : ' · connecting…');
+  } else {
+    b.classList.remove('on');
+    b.textContent = 'Cast to display';
+  }
+}
+
+function startDisplay() {
+  displayActive = true;
+  $('displayStage').style.display = 'block';
+  $('displayStage').classList.remove('paired');
+  connectDisplay();
+  try { if ('wakeLock' in navigator) navigator.wakeLock.request('screen').catch(() => {}); } catch (e) {}
+}
+
+function stopDisplay() {
+  displayActive = false;
+  clearTimeout(dispRetry);
+  if (dispWs) { try { dispWs.onclose = null; dispWs.close(); } catch (e) {} }
+  dispWs = null;
+  dispCode = '';
+  $('displayStage').style.display = 'none';
+}
+
+function connectDisplay() {
+  dispWs = new WebSocket(RELAY_URL);
+  dispWs.onopen = () => {
+    $('displayStage').classList.remove('disconnected');
+    dispWs.send(JSON.stringify({ t: 'display', code: dispCode }));
+  };
+  dispWs.onmessage = ev => {
+    let m = {};
+    try { m = JSON.parse(ev.data); } catch (e) {}
+    if (m.t === 'code') {
+      dispCode = m.code;
+      document.querySelector('#displayWait .dcode').textContent = m.code.split('').join(' ');
+    }
+    if (m.t === 'state') renderDisplayState(m);
+  };
+  dispWs.onclose = () => {
+    if (!displayActive) return;
+    $('displayStage').classList.add('disconnected');
+    dispRetry = setTimeout(connectDisplay, 2000);
+  };
+}
+
+function renderDisplayState(m) {
+  const stage = $('displayStage');
+  stage.classList.add('paired');
+  stage.classList.remove('disconnected');
+  if (m.settings) settings = Object.assign({}, settings, m.settings);
+  styleStage(stage, $('displayText'));
+  renderRichText($('displayText'), twoLineText(m.text || ''));
+  testCard = !!m.tc;
+  renderTestCard(stage, $('displayTC'));
+}
+
+/* ================================================================
    Projector test card — focus & legibility check
    ================================================================ */
 let testCard = false;
@@ -2715,6 +2912,125 @@ function renderTestCard(stageEl, wrapEl) {
     line.textContent = s2;
     txt.appendChild(line);
   });
+}
+
+/* ================================================================
+   Subtitle deck PDF — every cue as one 16:9 page, styled like the
+   stage. Any PDF viewer in fullscreen becomes the subtitle machine:
+   Page Down = next cue. The ultimate no-internet fallback.
+   Pages render through the browser's own canvas (same fonts, same
+   emphasis, any script), then a hand-rolled image PDF wraps them.
+   ================================================================ */
+function parseEmphasisSegs(line) {
+  const out = [];
+  line.split(/(\*{1,3}[^*]+\*{1,3})/).forEach(p => {
+    if (!p) return;
+    const m = p.match(/^(\*{1,3})([^*]+)\1$/);
+    if (m) out.push({ txt: m[2], bold: m[1].length >= 2, italic: m[1].length !== 2 });
+    else out.push({ txt: p, bold: false, italic: false });
+  });
+  return out;
+}
+
+async function renderCuePage(ctx, W, H, text) {
+  ctx.fillStyle = settings.bg;
+  ctx.fillRect(0, 0, W, H);
+  if (text) {
+    const fontPx = settings.size * H / 1080;
+    const lineHeight = fontPx * 1.25;
+    const fontOf = s =>
+      (s.italic ? 'italic ' : '') + (s.bold ? '700 ' : '600 ') + fontPx +
+      'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    const lines = twoLineText(text).split('\n');
+    const blockH = lines.length * lineHeight;
+    const baseTop = settings.posY / 100 * (H - blockH);
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = settings.color;
+    lines.forEach((ln, i) => {
+      const segs = parseEmphasisSegs(ln);
+      const widths = segs.map(s => { ctx.font = fontOf(s); return ctx.measureText(s.txt).width; });
+      const total = widths.reduce((a, b) => a + b, 0);
+      let x = settings.align === 'left' ? W * 0.04
+            : settings.align === 'right' ? W * 0.96 - total
+            : (W - total) / 2;
+      const y = baseTop + (i + 0.5) * lineHeight;
+      segs.forEach((s, k) => {
+        ctx.font = fontOf(s);
+        ctx.fillText(s.txt, x, y);
+        x += widths[k];
+      });
+    });
+  }
+  return new Promise(res => {
+    document.__pdfCanvas.toBlob(b => b.arrayBuffer().then(a => res(new Uint8Array(a))), 'image/jpeg', 0.92);
+  });
+}
+
+function buildImagePdf(images, imgW, imgH) {
+  const enc = new TextEncoder();
+  const parts = [];
+  const offsets = [0];
+  let pos = 0;
+  const push = u8 => { parts.push(u8); pos += u8.length; };
+  const pushStr = s => push(enc.encode(s));
+  const objStart = () => offsets.push(pos);
+  const PW = 960, PH = 540;
+  const n = images.length;
+  // object numbering: 1 catalog, 2 pages, 3 shared content, then per page: 4+2k page, 5+2k image
+  pushStr('%PDF-1.4\n');
+  objStart(); pushStr('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+  const kids = Array.from({ length: n }, (_, k) => (4 + 2 * k) + ' 0 R').join(' ');
+  objStart(); pushStr('2 0 obj\n<< /Type /Pages /Kids [' + kids + '] /Count ' + n + ' >>\nendobj\n');
+  const content = 'q ' + PW + ' 0 0 ' + PH + ' 0 0 cm /Im0 Do Q';
+  objStart(); pushStr('3 0 obj\n<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream\nendobj\n');
+  images.forEach((img, k) => {
+    const pageNum = 4 + 2 * k, imgNum = 5 + 2 * k;
+    objStart();
+    pushStr(pageNum + ' 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PW + ' ' + PH + '] ' +
+      '/Resources << /XObject << /Im0 ' + imgNum + ' 0 R >> >> /Contents 3 0 R >>\nendobj\n');
+    objStart();
+    pushStr(imgNum + ' 0 obj\n<< /Type /XObject /Subtype /Image /Width ' + imgW + ' /Height ' + imgH +
+      ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + img.length + ' >>\nstream\n');
+    push(img);
+    pushStr('\nendstream\nendobj\n');
+  });
+  const xrefPos = pos;
+  const total = 3 + 2 * n + 1;
+  let xref = 'xref\n0 ' + total + '\n0000000000 65535 f \n';
+  for (let i = 1; i < total; i++) xref += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
+  pushStr(xref + 'trailer\n<< /Size ' + total + ' /Root 1 0 R >>\nstartxref\n' + xrefPos + '\n%%EOF\n');
+  return new Blob(parts, { type: 'application/pdf' });
+}
+
+async function exportSubtitlePdf() {
+  if (!cues.length) { toast('No subtitle cues to export.'); return; }
+  const status = $('loadStatus');
+  status.classList.remove('error');
+  const W = 1600, H = 900;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  document.__pdfCanvas = canvas;
+  const ctx = canvas.getContext('2d');
+  const texts = ['', ...cues.map(c => c.text), ''];   // pre-show blank … end blank
+  const images = [];
+  for (let i = 0; i < texts.length; i++) {
+    if (i % 20 === 0) {
+      status.textContent = 'Rendering subtitle deck… page ' + (i + 1) + ' of ' + texts.length;
+      await new Promise(r => setTimeout(r, 0));
+    }
+    images.push(await renderCuePage(ctx, W, H, texts[i]));
+  }
+  status.textContent = '';
+  const blob = buildImagePdf(images, W, H);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (currentShowName().replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') || 'show') + '-subtitles.pdf';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast(cues.length + ' cues → ' + texts.length + ' pages. Fullscreen the PDF: Page Down = next cue.');
 }
 
 /* ================================================================
@@ -2854,6 +3170,7 @@ function showLoadScreen(withScriptIntake) {
   $('loadScreen').style.display = 'flex';
   $('scriptIntake').classList.toggle('open', !!withScriptIntake);
   $('printBtn').style.display = (cues.length || musicCues.length) ? '' : 'none';
+  $('pdfDeckBtn').style.display = cues.length ? '' : 'none';
   refreshResumeBtn();
   if (showReg) renderShowCards();
 }
@@ -3105,6 +3422,16 @@ window.addEventListener('beforeunload', e => {
       setTimeout(() => toast('New here? The ? up top is the 60-second guide.'), 800);
     }
   } catch (e) {}
+
+  if (!RELAY_POSSIBLE) {
+    $('castBtn').style.display = 'none';
+    $('displayBtn').style.display = 'none';
+  } else {
+    try {
+      const cc = localStorage.getItem(CAST_LS);
+      if (cc) castConnect(cc);   // survive a mid-show reload
+    } catch (e) {}
+  }
 
   window.appReady = true;   // init (incl. async storage reads) is complete
 
