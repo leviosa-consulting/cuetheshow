@@ -108,7 +108,7 @@
     padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--border);
     flex: 0 0 auto;
   }
-  #topBar .title { font-weight: 600; display: flex; align-items: center; }
+  #topBar .title { font-weight: 600; display: flex; align-items: center; cursor: pointer; }
   .logoMark {
     width: 20px; height: 20px; margin-right: 8px; flex: 0 0 auto;
     filter: drop-shadow(0 0 6px rgba(91, 157, 217, .45));
@@ -605,7 +605,7 @@
 <!-- ================= Operator console ================= -->
 <div id="console">
   <div id="topBar">
-    <span class="title"><svg class="logoMark" viewBox="0 0 100 100" aria-hidden="true"><polygon points="26,18 88,50 26,82" fill="#5b9dd9"/><circle cx="80" cy="22" r="10" fill="#6fbf85"/></svg><span id="titleText">CueTheShow</span></span>
+    <span class="title" id="brandHome" title="All shows"><svg class="logoMark" viewBox="0 0 100 100" aria-hidden="true"><polygon points="26,18 88,50 26,82" fill="#5b9dd9"/><circle cx="80" cy="22" r="10" fill="#6fbf85"/></svg><span id="titleText">CueTheShow</span></span>
     <button id="showsBtn" tabindex="-1" title="All shows"><span id="showLabel"></span><span class="chev">▾</span></button>
     <span id="cueCounter"></span>
     <span class="spacer"></span>
@@ -2732,6 +2732,7 @@ function bindShowUI() {
     showLoadScreen();
     document.activeElement.blur();
   });
+  $('brandHome').addEventListener('click', () => showLoadScreen());
 }
 
 /* ================================================================
