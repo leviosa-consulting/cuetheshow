@@ -148,6 +148,9 @@
   .ctl > label { font-size: 12px; color: var(--dim); }
   .ctl .row { display: flex; align-items: center; gap: 10px; }
   .ctl .val { min-width: 42px; text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; font-size: 12px; }
+  .ctl.wide { grid-column: 1 / -1; }
+  .clab { color: var(--dim); font-size: 12px; }
+  .clab + input[type="color"] { margin-right: 14px; }
   .alignBtns { display: flex; gap: 6px; }
   .alignBtns button { flex: 1; padding: 5px 0; }
   .alignBtns button.sel { background: var(--accent-soft); border-color: var(--accent); }
@@ -538,14 +541,16 @@
           <label>Vertical position</label>
           <div class="row"><input type="range" id="posCtl" min="0" max="100" step="1"><span class="val" id="posVal"></span></div>
         </div>
-        <div class="ctl">
-          <label>Colours &nbsp;·&nbsp; text / background</label>
+        <div class="ctl wide">
+          <label>Colours</label>
           <div class="row">
+            <span class="clab">Text</span>
             <input type="color" id="colorCtl">
+            <span class="clab">Background</span>
             <input type="color" id="bgCtl">
           </div>
         </div>
-        <div class="ctl">
+        <div class="ctl wide">
           <label>Horizontal alignment</label>
           <div class="alignBtns">
             <button data-align="left" tabindex="-1">Left</button>
