@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CueTheShow — music & subtitle cues for live performance</title>
-<meta name="description" content="Free music and subtitle (surtitle) cue console for live theatre and dance. Runs entirely in your browser — your audio and script never leave your device.">
+<title>CueTheShow: music and subtitle cues for live performance</title>
+<meta name="description" content="Free music and subtitle (surtitle) cue console for live theatre and dance. Runs entirely in your browser: your audio and script never leave your device.">
 <meta name="theme-color" content="#16181d">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -502,34 +502,34 @@
 <div id="loadScreen">
   <h1><svg class="logoMark" viewBox="0 0 100 100" aria-hidden="true"><polygon points="26,18 88,50 26,82" fill="#5b9dd9"/><circle cx="80" cy="22" r="10" fill="#6fbf85"/></svg><span id="h1Text">CueTheShow</span></h1>
   <div id="showCards"></div>
-  <button id="addScriptBtn" tabindex="-1">📄 Add a script — PDF or pasted text (for subtitles)</button>
+  <button id="addScriptBtn" tabindex="-1">📄 Add a script for subtitles (PDF or pasted text)</button>
   <div id="scriptIntake">
-  <p class="sub">A script becomes subtitle cues of ~8 words (max 12); a new sentence
-     always starts on a fresh screen. Music needs no script.</p>
+  <p class="sub">A script becomes subtitle cues of about 8 words (12 at most).
+     A new sentence always starts on a fresh screen.</p>
   <div id="dropZone">
     <strong>Drop your PDF here</strong><br>or click to choose a file<br>
-    <span style="font-size:12px">(or a .cues.json / a full .cueshow.zip show bundle)</span>
+    <span style="font-size:12px">(also takes a .cues.json file or a .cueshow.zip show bundle)</span>
   </div>
   <div id="pasteWrap">
-    <textarea id="pasteBox" rows="5" placeholder="…or paste the script text here — every line break starts a new cue, even without punctuation"></textarea>
+    <textarea id="pasteBox" rows="5" placeholder="…or paste the script text here. Every line break starts a new cue, even without punctuation."></textarea>
     <button id="pasteBtn">Create cues from pasted text</button>
   </div>
-  <p class="sub" style="font-size:12px">A PDF needs selectable text — if yours is a
-     scan, run OCR on it or paste the text instead. Cues can be edited afterwards
-     (double-click a cue in the list). Wrap words in *asterisks* for
-     <em>italics</em>, **double** for <strong>bold</strong>; italics already
-     in a PDF come across automatically.</p>
+  <p class="sub" style="font-size:12px">A PDF needs selectable text. If yours is a
+     scanned image, paste the text instead. You can edit any cue later
+     (double-click it in the list). Wrap words in *asterisks* for
+     <em>italics</em> and **double asterisks** for <strong>bold</strong>.
+     Italics already in the PDF carry over automatically.</p>
   </div>
   <input type="file" id="fileInput" accept=".pdf,.json,.zip,application/pdf,application/json,application/zip" style="display:none">
   <button id="resumeBtn" class="primary"></button>
-  <button id="musicOnlyBtn">Continue without a script — music runs fine alone</button>
+  <button id="musicOnlyBtn">Continue without a script (you can add one later)</button>
   <button id="printBtn" tabindex="-1">🖨 Print cue sheet</button>
-  <button id="pdfDeckBtn" tabindex="-1">📽 Export subtitles as a PDF deck — run the show from any PDF viewer</button>
-  <button id="displayBtn" tabindex="-1">🖵 Be a display — this screen shows a paired console's subtitles</button>
+  <button id="pdfDeckBtn" tabindex="-1">📽 Export subtitles as a PDF (one page per cue, works in any PDF viewer)</button>
+  <button id="displayBtn" tabindex="-1">🖵 Use this screen as a display for another console's subtitles</button>
   <button id="clearBtn">Clear saved show data</button>
   <div id="loadStatus"></div>
-  <p class="sub" id="aboutLine" style="font-size:12px">Free &amp; open source (MIT) ·
-     runs entirely in your browser — your script and audio never leave this device ·
+  <p class="sub" id="aboutLine" style="font-size:12px">Free and open source (MIT).
+     Runs entirely in your browser: your script and audio never leave this device.
      <a id="dlLink" href="cuetheshow-offline.html" download="cuetheshow.html">download offline copy</a> ·
      <a href="https://github.com/leviosa-consulting/cuetheshow" target="_blank" rel="noopener">source</a></p>
 
@@ -543,7 +543,7 @@
     <span id="cueCounter"></span>
     <span class="spacer"></span>
     <button id="helpBtn" tabindex="-1" title="Quick guide">?</button>
-    <button id="openOutputBtn" class="primary" title="Output window on THIS machine — drag it to the projector, double-click for fullscreen"><span id="outputDot"></span><span id="outputBtnLabel">Projector view</span></button>
+    <button id="openOutputBtn" class="primary" title="Output window on this machine. Drag it to the projector and double-click for fullscreen."><span id="outputDot"></span><span id="outputBtnLabel">Projector view</span></button>
   </div>
 
   <div id="main">
@@ -567,9 +567,7 @@
         <span id="hintSubs"><kbd>Space</kbd>/<kbd>→</kbd> next &nbsp; <kbd>←</kbd> prev &nbsp;
         <kbd>B</kbd> blank &nbsp; <kbd>N</kbd> new cue &nbsp;
         <kbd>Home</kbd>/<kbd>End</kbd> first/last &nbsp;·&nbsp;</span>
-        <span id="hintMusic">music: <kbd>⏎</kbd> GO &nbsp; <kbd>S</kbd> fade &nbsp;
-        <kbd>P</kbd> pause &nbsp; <kbd>X</kbd> stop (×2 = cut) &nbsp;·&nbsp;</span>
-        <span id="hintOut">double-click output window for fullscreen</span>
+        <span id="hintOut">double-click the projector window for fullscreen</span>
       </div>
 
       <div id="stylePanel">
@@ -604,7 +602,7 @@
         <span class="label">SETUP</span>
         <button id="newPdfBtn">Load new script</button>
         <button id="testCardBtn" tabindex="-1">Test card</button>
-        <button id="castBtn" tabindex="-1" title="Show the output on ANOTHER machine — it displays a 4-letter code, enter it here">Cast to display</button>
+        <button id="castBtn" tabindex="-1" title="Show the output on another machine. It will show a 4-letter code to enter here.">Cast to display</button>
         <label id="modeWrap">Zoom
           <select id="uiScaleCtl">
             <option value="90">90%</option>
@@ -642,7 +640,7 @@
           <div class="master"><span>Vol</span><input type="range" id="masterCtl" min="0" max="100" step="1"><span class="val" id="masterVal"></span></div>
         </div>
         <div id="musicList"></div>
-        <div id="musicAddRow">＋ Add audio tracks — click or drop files here</div>
+        <div id="musicAddRow">＋ Add audio tracks (click or drop files here)</div>
         <input type="file" id="musicFileInput" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.flac" multiple style="display:none">
       </div>
       <div id="cuesTab" style="display:none">
@@ -671,35 +669,36 @@
     <button id="helpClose" tabindex="-1">×</button>
     <h2>Running a show in three steps</h2>
     <ol>
-      <li><strong>Music</strong> — add your audio files, put them in show order, and set
-        volume, fades, loops and trims per cue (✎). Groups A–D crossfade within
-        themselves and play over each other; <em>stack</em> plays on top. Hit
-        <em>GO</em><span class="hkeys"> (<kbd>⏎</kbd>)</span> for each cue at
-        show time — that's the whole job.</li>
-      <li><strong>Subtitles (optional)</strong> — running surtitles or captions too?
-        Switch Console mode to <em>Music + subtitles</em> in SETUP, then drop a script
-        PDF or paste text; it becomes subtitle cues (~8 words, sentence-safe).
-        <code>*italic*</code>, <code>**bold**</code>. Music cues can link to lines.</li>
-      <li><strong>Show time</strong> — with subtitles, click <em>Projector view</em>,
-        drag it to the projector, double-click for fullscreen.<span class="hkeys">
-        The keys:</span><span class="htouch"> The big buttons run everything —
-        <em>GO</em> for music, <em>Next ▶</em> for subtitles.</span></li>
+      <li><strong>Music</strong>: add your audio files and put them in show order.
+        Each cue has its own volume, fades, loop and timing settings (✎). At show
+        time, hit <em>GO</em><span class="hkeys"> (<kbd>⏎</kbd>)</span> for each cue.
+        A new cue in group A replaces the old one; groups B, C and D play alongside;
+        an "on top" cue is never replaced.</li>
+      <li><strong>Subtitles (optional)</strong>: switch Mode to
+        <em>Music + subtitles</em> in SETUP, then drop a script PDF or paste text.
+        It becomes cues of about 8 words each. <code>*italic*</code>,
+        <code>**bold**</code>. A music cue can be linked to a subtitle line.</li>
+      <li><strong>Show time</strong>: with subtitles, click <em>Projector view</em>
+        and drag that window to the projector. Double-click it for
+        fullscreen.<span class="hkeys"> The keys:</span><span class="htouch">
+        The big buttons run everything: <em>GO</em> for music,
+        <em>Next ▶</em> for subtitles.</span></li>
     </ol>
     <table>
-      <tr><td><kbd>Space</kbd> / <kbd>→</kbd></td><td>next subtitle</td><td><kbd>⏎</kbd></td><td>GO — fire music</td></tr>
+      <tr><td><kbd>Space</kbd> / <kbd>→</kbd></td><td>next subtitle</td><td><kbd>⏎</kbd></td><td>GO: play the next music cue</td></tr>
       <tr><td><kbd>←</kbd></td><td>previous subtitle</td><td><kbd>S</kbd></td><td>fade music out</td></tr>
       <tr><td><kbd>B</kbd></td><td>blank the screen</td><td><kbd>P</kbd></td><td>pause / resume</td></tr>
       <tr><td><kbd>N</kbd></td><td>insert a cue</td><td><kbd>X</kbd></td><td>stop all (twice = instant)</td></tr>
     </table>
     <p><strong>Second screen:</strong> <em>Projector view</em> opens the output on
-      this machine — drag it to the projector. To use <em>another</em> machine as the
-      screen: open CueTheShow there, tap the show name → <em>🖵 Be a display</em>,
-      then here SETUP → <em>Cast to display</em> and type its 4-letter code. Cues
-      follow instantly; both ends reconnect on their own.</p>
-    <p>Everything is saved in this browser automatically and restores on reopen —
-      switch or add shows from the name in the top bar. <em>Export show</em> (SETUP, or
-      ⇩ on a show card) makes one file with script, music and audio — drop it on any
-      other machine to move the whole show.</p>
+      this machine. To use another machine as the screen: open CueTheShow there,
+      tap the show name, then <em>🖵 Use this screen as a display</em>. Enter its
+      4-letter code here under SETUP → <em>Cast to display</em>. Cues follow
+      instantly and both ends reconnect on their own.</p>
+    <p>Everything is saved in this browser and restores when you reopen. Switch or
+      add shows from the show name in the top bar. ⇩ on a show card makes one file
+      with script, music and audio. Drop that file on any other machine to move
+      the whole show.</p>
     <p class="hpriv">CueTheShow runs entirely in your browser. Your script and audio
       never leave your device. Free &amp; open source (MIT).</p>
   </div>
@@ -1050,7 +1049,7 @@ function isLocked(id) {
 }
 
 function lockToast() {
-  toast('Show is locked 🔒 — unlock it on the shows screen.');
+  toast('Show is locked 🔒. Unlock it on the shows screen.');
 }
 
 function currentShowName() {
@@ -1133,13 +1132,13 @@ function openOutput() {
   if (outWin && !outWin.closed) { outWin.focus(); return; }
   outWin = window.open('', 'subtitle_output', 'width=960,height=540');
   if (!outWin) {
-    toast('Pop-up blocked — allow pop-ups for this page, then try again.');
+    toast('Pop-up blocked. Allow pop-ups for this page, then try again.');
     return;
   }
   const d = outWin.document;
   d.open();
   d.write('<!doctype html><html><head><meta charset="utf-8">' +
-    '<title>Subtitles — Output</title><style>' +
+    '<title>Subtitle output</title><style>' +
     'html,body{margin:0;height:100%;overflow:hidden;cursor:none}' +
     '#stage{position:fixed;inset:0}' +
     '#text{position:absolute;left:4%;right:4%;margin:0;white-space:pre-wrap;' +
@@ -1917,7 +1916,7 @@ function showMusicAlert(cue, i) {
   alertCueId = cue.id;
   const el = $('musicAlert');
   el.innerHTML = '';
-  el.appendChild(document.createTextNode('♪ Music due: ' + (i + 1) + '. ' + cue.name + ' — '));
+  el.appendChild(document.createTextNode('♪ Music due: ' + (i + 1) + '. ' + cue.name + ' '));
   const play = document.createElement('button');
   play.textContent = 'Play (⏎)';
   play.className = 'primary';
@@ -1976,7 +1975,7 @@ function cancelFollows() {
 
 function goMusic(fromFollow) {
   if (musicStandby >= musicCues.length) {
-    if (!fromFollow) toast('End of music stack');
+    if (!fromFollow) toast('End of the music list');
     return;
   }
   if (!fromFollow) cancelFollows();
@@ -2022,16 +2021,16 @@ function fmtTime(s) {
 
 function musicCueSummary(c) {
   const bits = [Math.round(c.volume * 100) + '%'];
-  if (c.duck != null) bits.push('ducks→' + Math.round(c.duck * 100) + '%');
+  if (c.duck != null) bits.push('lowers others to ' + Math.round(c.duck * 100) + '%');
   if (c.fadeIn) bits.push('in ' + c.fadeIn + 's');
   bits.push('out ' + c.fadeOut + 's');
   if (c.loop) bits.push('loop');
   if (c.startAt || c.endAt) {
     bits.push(fmtTime(c.startAt || 0) + '→' + (c.endAt ? fmtTime(c.endAt) : 'end'));
   }
-  if (c.followMode === 'delay') bits.push('follow +' + c.followDelay + 's');
-  if (c.followMode === 'end') bits.push('follow @end');
-  if (c.followMode === 'with') bits.push('with next');
+  if (c.followMode === 'delay') bits.push('next after ' + c.followDelay + 's');
+  if (c.followMode === 'end') bits.push('next at end');
+  if (c.followMode === 'with') bits.push('next together');
   if (c.linkCue != null) {
     bits.push('♪ line ' + (c.linkCue + 1) + (c.linkMode === 'remind' ? ' remind' : ' auto'));
   }
@@ -2076,12 +2075,12 @@ function renderMusicStandby() {
   const el = $('musicStandbyLine');
   const next = musicCues[musicStandby];
   if (!musicCues.length) {
-    el.innerHTML = 'No music cues yet — add audio tracks below.';
+    el.innerHTML = 'No music cues yet. Add audio tracks below.';
   } else if (!next) {
-    el.textContent = 'End of music stack.';
+    el.textContent = 'End of the music list.';
   } else {
     el.textContent = '';
-    el.appendChild(document.createTextNode('standby → '));
+    el.appendChild(document.createTextNode('Up next → '));
     const s = document.createElement('strong');
     s.textContent = (musicStandby + 1) + '. ' + next.name;
     el.appendChild(s);
@@ -2106,7 +2105,7 @@ function renderMusicList() {
     name.textContent = c.name;
     const badge = document.createElement('span');
     badge.className = 'badge' + (c.group === 'stack' ? ' sfx' : '');
-    badge.textContent = c.group === 'stack' ? 'stack' : 'grp ' + c.group;
+    badge.textContent = c.group === 'stack' ? 'on top' : 'grp ' + c.group;
     const sum = document.createElement('span');
     sum.className = 'sum';
     sum.textContent = musicCueSummary(c);
@@ -2173,9 +2172,11 @@ function buildMusicEditor(c) {
   name.value = c.name;
   name.addEventListener('input', () => { c.name = name.value; });
   const grp = document.createElement('select');
-  [['A', 'A — main (crossfades within A)'], ['B', 'B — bed (independent)'],
-   ['C', 'C — bed (independent)'], ['D', 'D — bed (independent)'],
-   ['stack', 'stack — plays on top, never replaced']]
+  [['A', 'A (main): a new A cue replaces the old one'],
+   ['B', 'B: plays alongside, replaced only by B'],
+   ['C', 'C: plays alongside, replaced only by C'],
+   ['D', 'D: plays alongside, replaced only by D'],
+   ['stack', 'On top: never replaced by other cues']]
     .forEach(([v, t]) => {
       const o = document.createElement('option');
       o.value = v;
@@ -2210,7 +2211,7 @@ function buildMusicEditor(c) {
   loopWrap.className = 'mChk';
   loopWrap.append(loop, document.createTextNode('loop'));
   const follow = document.createElement('select');
-  [['none', 'do nothing — next cue waits for GO'],
+  [['none', 'do nothing (next cue waits for GO)'],
    ['with', 'also start the NEXT cue at the same time'],
    ['delay', 'start the NEXT cue after a delay'],
    ['end', 'start the NEXT cue when this track ends']]
@@ -2250,7 +2251,7 @@ function buildMusicEditor(c) {
   });
   updateSnippet();
   const lmode = document.createElement('select');
-  [['auto', 'fire automatically'], ['remind', 'remind me — I press GO']]
+  [['auto', 'play automatically'], ['remind', 'remind me (I press GO)']]
     .forEach(([v, t]) => {
       const o = document.createElement('option');
       o.value = v;
@@ -2272,7 +2273,7 @@ function buildMusicEditor(c) {
   ed.append(
     field('Name', name, true),
     field('Group', grp), field('Volume %', vol),
-    field('While this plays, duck others to (%)', duck), loopWrap,
+    field('While this plays, lower other tracks to (%)', duck), loopWrap,
     field('Fade in (s)', fin), field('Fade out (s)', fout),
     field('Start at (s)', st), field('End at (s)', en),
     field('When THIS cue starts…', follow), fdelayF,
@@ -2499,16 +2500,16 @@ function renameShow(name) { renameShowById(showId, name); }
 
 async function deleteShowById(id) {
   if (showReg.list.length <= 1) {
-    toast('This is the only show — use “Clear saved show data” instead.');
+    toast('This is the only show. Use “Clear saved show data” instead.');
     return;
   }
   const s = showReg.list.find(x => x.id === id);
   if (!s) return;
   if (s.locked) {
-    toast('“' + s.name + '” is locked 🔒 — unlock it before deleting.');
+    toast('“' + s.name + '” is locked 🔒. Unlock it before deleting.');
     return;
   }
-  if (!confirm('Delete show “' + s.name + '” — its script, music cues, settings and stored audio? This cannot be undone.')) return;
+  if (!confirm('Delete show “' + s.name + '”? Its script, music cues, settings and stored audio will be removed. This cannot be undone.')) return;
   ['cues', 'index', 'settings', 'name', 'music'].forEach(k => {
     try { localStorage.removeItem('subtitleTool.show.' + id + '.' + k); } catch (e) {}
   });
@@ -2566,7 +2567,7 @@ function renderShowCards() {
       s.locked = !s.locked;
       saveShowReg();
       renderShowUI();
-      toast(s.locked ? '“' + s.name + '” locked — it can be run but not changed.'
+      toast(s.locked ? '“' + s.name + '” is locked. It can be run but not changed.'
                      : '“' + s.name + '” unlocked.');
     });
     acts.appendChild(lk);
@@ -2716,7 +2717,7 @@ async function zipRead(file) {
     const clen = dv.getUint16(p + 32, true);
     const lho = dv.getUint32(p + 42, true);
     const name = dec.decode(buf.subarray(p + 46, p + 46 + nlen));
-    if (method !== 0) throw new Error('compressed zip — not a CueTheShow bundle');
+    if (method !== 0) throw new Error('compressed zip, not a CueTheShow bundle');
     const lnlen = dv.getUint16(lho + 26, true);
     const lxlen = dv.getUint16(lho + 28, true);
     const start = lho + 30 + lnlen + lxlen;
@@ -2764,7 +2765,7 @@ async function exportShowBundle(id) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-  toast('Bundle saved — script, music and audio in one file' +
+  toast('Bundle saved: script, music and audio in one file' +
         (missing ? ' (' + missing + ' audio track' + (missing > 1 ? 's' : '') + ' missing)' : ''));
 }
 
@@ -2802,7 +2803,7 @@ async function importShowBundle(file) {
     saveShowReg();
     status.textContent = '';
     await switchShow(id);
-    toast('Show “' + name + '” imported — audio included');
+    toast('Show “' + name + '” imported with its audio.');
   } catch (err) {
     status.classList.add('error');
     status.textContent = 'Bundle import failed: ' + (err && err.message ? err.message : err);
@@ -2972,7 +2973,7 @@ function renderTestCard(stageEl, wrapEl) {
     'text-align:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-weight:600;' +
     'line-height:1.3;color:' + settings.color);
   [[1, 'The quick brown fox jumps over the lazy dog'],
-   [0.72, 'Focus and legibility — read this from the back row'],
+   [0.72, 'Focus and legibility. Read this from the back row.'],
    [0.5, 'CueTheShow test card · font ' + settings.size + 'px @1080']].forEach(([f, s2]) => {
     const line = document.createElement('div');
     line.style.fontSize = (settings.size * h / 1080 * f) + 'px';
@@ -3097,7 +3098,7 @@ async function exportSubtitlePdf() {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-  toast(cues.length + ' cues → ' + texts.length + ' pages. Fullscreen the PDF: Page Down = next cue.');
+  toast('Saved ' + cues.length + ' cues as ' + texts.length + ' PDF pages. In the viewer, Page Down shows the next cue.');
 }
 
 /* ================================================================
@@ -3105,7 +3106,7 @@ async function exportSubtitlePdf() {
    ================================================================ */
 function printCueSheet() {
   const w = window.open('', '_blank');
-  if (!w) { toast('Pop-up blocked — allow pop-ups to print'); return; }
+  if (!w) { toast('Pop-up blocked. Allow pop-ups to print.'); return; }
   const esc = s => String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const musicFor = i => musicCues
@@ -3119,7 +3120,7 @@ function printCueSheet() {
     '<tr><td class="n">' + (i + 1) + '</td><td>' + esc(c.name) + '</td><td>' +
     esc(c.group) + '</td><td>' + esc(musicCueSummary(c)) + '</td></tr>').join('');
   w.document.write('<!doctype html><html><head><title>' + esc(currentShowName()) +
-    ' — cue sheet</title><style>' +
+    ': cue sheet</title><style>' +
     'body{font:12px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;color:#000;margin:26px}' +
     'h1{font-size:18px;margin:0 0 2px} .sub{color:#555;margin-bottom:14px}' +
     'h2{font-size:14px;margin:20px 0 6px;border-bottom:1px solid #999;padding-bottom:3px}' +
@@ -3127,7 +3128,7 @@ function printCueSheet() {
     'th{background:#eee} .n{width:32px;text-align:right;color:#555}' +
     '.noprint{margin:12px 0} @media print{.noprint{display:none}}' +
     '</style></head><body>' +
-    '<h1>' + esc(currentShowName()) + ' — cue sheet</h1>' +
+    '<h1>' + esc(currentShowName()) + ': cue sheet</h1>' +
     '<div class="sub">' + cues.length + ' subtitle cues · ' + musicCues.length +
     ' music cues · printed from CueTheShow</div>' +
     '<div class="noprint"><button onclick="print()">Print</button></div>' +
@@ -3160,7 +3161,6 @@ function applyMode() {
   document.body.classList.toggle('mode-subs', appMode === 'subtitles');
   $('hintSubs').style.display = appMode === 'music' ? 'none' : '';
   $('hintOut').style.display = appMode === 'music' ? 'none' : '';
-  $('hintMusic').style.display = appMode === 'subtitles' ? 'none' : '';
   const titleEl = $('titleText');
   if (!applyMode._baseTitle) applyMode._baseTitle = titleEl.textContent;
   titleEl.textContent = appMode === 'music' ? 'CueTheShow · Music' : applyMode._baseTitle;
@@ -3300,7 +3300,7 @@ async function handleFile(file) {
   }
   if (isLocked()) {
     status.classList.add('error');
-    status.textContent = 'This show is locked 🔒 — unlock it to load a script, or import a bundle as a new show.';
+    status.textContent = 'This show is locked 🔒. Unlock it to load a script, or import a bundle as a new show.';
     return;
   }
 
@@ -3336,7 +3336,7 @@ async function handleFile(file) {
         const missing = musicCues.filter(c => !c.hasAudio).length;
         if (missing) {
           setTimeout(() => toast(missing + ' music cue' + (missing > 1 ? 's need' : ' needs') +
-            ' audio — add the tracks and they match by filename'), 500);
+            ' audio. Add the tracks and they will match by filename.'), 500);
         }
         saveMusic();
         prewarmAudio();
@@ -3354,7 +3354,7 @@ async function handleFile(file) {
 
   if (!PDF_AVAILABLE) {
     status.classList.add('error');
-    status.textContent = 'This offline copy has no PDF engine — paste the ' +
+    status.textContent = 'This offline copy has no PDF engine. Paste the ' +
       'script text instead, or use the full offline build for PDFs.';
     return;
   }
@@ -3362,7 +3362,7 @@ async function handleFile(file) {
     status.textContent = 'Loading the PDF engine…';
     if (!(await ensurePdfjs())) {
       status.classList.add('error');
-      status.textContent = 'Could not load the PDF engine — check the connection and try again.';
+      status.textContent = 'Could not load the PDF engine. Check the connection and try again.';
       return;
     }
   }
