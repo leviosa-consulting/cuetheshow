@@ -543,7 +543,7 @@
     <span id="cueCounter"></span>
     <span class="spacer"></span>
     <button id="helpBtn" tabindex="-1" title="Quick guide">?</button>
-    <button id="openOutputBtn" class="primary"><span id="outputDot"></span><span id="outputBtnLabel">Projector view</span></button>
+    <button id="openOutputBtn" class="primary" title="Output window on THIS machine — drag it to the projector, double-click for fullscreen"><span id="outputDot"></span><span id="outputBtnLabel">Projector view</span></button>
   </div>
 
   <div id="main">
@@ -604,7 +604,7 @@
         <span class="label">SETUP</span>
         <button id="newPdfBtn">Load new script</button>
         <button id="testCardBtn" tabindex="-1">Test card</button>
-        <button id="castBtn" tabindex="-1">Cast to display</button>
+        <button id="castBtn" tabindex="-1" title="Show the output on ANOTHER machine — it displays a 4-letter code, enter it here">Cast to display</button>
         <label id="modeWrap">Zoom
           <select id="uiScaleCtl">
             <option value="90">90%</option>
@@ -691,6 +691,11 @@
       <tr><td><kbd>B</kbd></td><td>blank the screen</td><td><kbd>P</kbd></td><td>pause / resume</td></tr>
       <tr><td><kbd>N</kbd></td><td>insert a cue</td><td><kbd>X</kbd></td><td>stop all (twice = instant)</td></tr>
     </table>
+    <p><strong>Second screen:</strong> <em>Projector view</em> opens the output on
+      this machine — drag it to the projector. To use <em>another</em> machine as the
+      screen: open CueTheShow there, tap the show name → <em>🖵 Be a display</em>,
+      then here SETUP → <em>Cast to display</em> and type its 4-letter code. Cues
+      follow instantly; both ends reconnect on their own.</p>
     <p>Everything is saved in this browser automatically and restores on reopen —
       switch or add shows from the name in the top bar. <em>Export show</em> (SETUP, or
       ⇩ on a show card) makes one file with script, music and audio — drop it on any
@@ -1524,7 +1529,12 @@ function bindControls() {
     if (castCode) {
       castDisconnect();
     } else {
-      const c = prompt('Enter the 4-letter code shown on the display screen:');
+      const c = prompt(
+        'Show subtitles on ANOTHER machine:\n\n' +
+        '1. On that machine, open ' + location.host + '\n' +
+        '2. Tap the show name (top-left) → “🖵 Be a display”\n' +
+        '3. A 4-letter code appears on its screen\n\n' +
+        'Enter that code:');
       if (c) castConnect(c);
     }
     document.activeElement.blur();
