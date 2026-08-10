@@ -364,6 +364,14 @@
     color: var(--dim); font-size: 18px; padding: 4px 8px;
   }
   #helpClose:hover { color: var(--text); }
+  .htouch { display: none; }
+  /* No keyboard on a touch device — the shortcut talk goes away. */
+  body.touch #helpBox table, body.touch #helpBox .hkeys { display: none; }
+  body.touch .htouch { display: inline; }
+  @media (max-width: 820px) {
+    #helpOverlay { padding: 14px 10px; }
+    #helpBox { padding: 18px 16px; margin-top: 1vh; }
+  }
 
   /* ---------- Touch devices (body.touch set at runtime) ---------- */
   button, .rtab, .cueItem, .mcueRow { touch-action: manipulation; }
@@ -606,14 +614,17 @@
     <ol>
       <li><strong>Music</strong> — add your audio files, put them in show order, and set
         volume, fades, loops and trims per cue (✎). Groups A–D crossfade within
-        themselves and play over each other; <em>stack</em> plays on top. Press
-        <kbd>⏎</kbd> GO for each cue at show time — that's the whole job.</li>
+        themselves and play over each other; <em>stack</em> plays on top. Hit
+        <em>GO</em><span class="hkeys"> (<kbd>⏎</kbd>)</span> for each cue at
+        show time — that's the whole job.</li>
       <li><strong>Subtitles (optional)</strong> — running surtitles or captions too?
         Switch Console mode to <em>Music + subtitles</em> in SETUP, then drop a script
         PDF or paste text; it becomes subtitle cues (~8 words, sentence-safe).
         <code>*italic*</code>, <code>**bold**</code>. Music cues can link to lines.</li>
       <li><strong>Show time</strong> — with subtitles, click <em>Projector view</em>,
-        drag it to the projector, double-click for fullscreen. The keys:</li>
+        drag it to the projector, double-click for fullscreen.<span class="hkeys">
+        The keys:</span><span class="htouch"> The big buttons run everything —
+        <em>GO</em> for music, <em>Next ▶</em> for subtitles.</span></li>
     </ol>
     <table>
       <tr><td><kbd>Space</kbd> / <kbd>→</kbd></td><td>next subtitle</td><td><kbd>⏎</kbd></td><td>GO — fire music</td></tr>
