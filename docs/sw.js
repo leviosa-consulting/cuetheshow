@@ -1,7 +1,7 @@
 /* CueTheShow service worker — network-first with full offline fallback.
    Online visits refresh the cache, so updates roll out automatically;
    with no network the whole console still runs from cache. */
-const CACHE = 'cuetheshow-v1';
+const CACHE = 'cuetheshow-v2';
 const ASSETS = ['./', 'index.html', 'lite.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -17,7 +17,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (new URL(e.request.url).origin !== location.origin) return;
   e.respondWith(
-    fetch(e.request).then(r => {
+    fetch(e.request, { cache: 'no-cache' }).then(r => {
       const copy = r.clone();
       caches.open(CACHE).then(c => c.put(e.request, copy));
       return r;
