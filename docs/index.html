@@ -56,7 +56,12 @@
     display: block; width: 100%; height: auto; border: 1px solid var(--border);
     border-radius: 12px; box-shadow: 0 18px 50px rgba(0, 0, 0, .45);
   }
-  .heroShot { max-width: 980px; margin: 36px auto 0; }
+  .heroShots { position: relative; max-width: 980px; margin: 36px auto 0; }
+  .phoneShot {
+    position: absolute; right: -14px; bottom: -34px; width: 168px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, .6);
+  }
+  @media (max-width: 900px) { .phoneShot { display: none; } }
 
   section { padding: 44px 0; }
   section h2 { font-size: clamp(22px, 3.4vw, 30px); margin-bottom: 8px; }
@@ -111,14 +116,17 @@
 
 <div class="hero">
   <div class="wrap">
-    <h1>Run your show's music and subtitles from one laptop</h1>
+    <h1>Run your show's music and subtitles from a laptop or a phone</h1>
     <p class="sub">CueTheShow is a free cue console for live theatre and dance.
        Your music becomes a numbered cue list with one big GO button.
        Your script becomes clean subtitles for the projector.
        No account, no install, and nothing you load ever leaves your device.</p>
     <a class="btn big" href="console.html">Open the console</a>
-    <p class="free">Free, open source, works offline. It runs in the browser you already have.</p>
-    <img class="shot heroShot" src="shot-console.png" alt="The CueTheShow console mid-show: subtitle preview on the left, music cues with a GO button on the right" width="1440" height="900">
+    <p class="free">Free, open source, works offline. It runs in the browser you already have: the full console on a laptop, a soundboard in your pocket on a phone.</p>
+    <div class="heroShots">
+      <img class="shot" src="shot-console.png" alt="The CueTheShow console mid-show: subtitle preview on the left, music cues with a GO button on the right" width="1440" height="900">
+      <img class="shot phoneShot" src="shot-phone.png" alt="The same console on a phone, as a music soundboard" width="780" height="1560">
+    </div>
   </div>
 </div>
 
