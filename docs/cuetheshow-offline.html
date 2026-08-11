@@ -602,10 +602,9 @@
   <div id="loadStatus"></div>
   <p class="sub" id="aboutLine" style="font-size:12px">Free and open source (MIT).
      Runs entirely in your browser: your script and audio never leave this device.
-     <a id="dlLink" href="cuetheshow-offline.html" download="cuetheshow.html">download offline copy</a><span id="dlSep"> · </span>
      <a href="https://github.com/leviosa-consulting/cuetheshow" target="_blank" rel="noopener">source</a> ·
-     <a id="coffeeLink" href="ticket.html" target="_blank" rel="noopener">send me a ticket to your show</a> ·
-     <a id="aboutLink" href="index.html?welcome" target="_blank" rel="noopener">about CueTheShow</a></p>
+     <a id="aboutLink" href="index.html?welcome" target="_blank" rel="noopener">about CueTheShow</a> ·
+     <a id="coffeeLink" href="ticket.html" target="_blank" rel="noopener">send me a ticket to your show</a></p>
 
 </div>
 
@@ -1664,8 +1663,8 @@ function bindControls() {
     } else {
       const c = await ctsPrompt(
         'Show subtitles on ANOTHER machine:\n\n' +
-        '1. On that machine, open ' + location.host + ' and choose Open the console\n' +
-        '2. Click “Use this screen as a display” on its opening screen\n' +
+        '1. On that machine, open ' + location.host + '\n' +
+        '2. Choose “Use this screen as a display” (bottom of the page)\n' +
         '3. A 4-letter code appears on its screen\n\n' +
         'Enter that code:', '', 'Cast');
       if (c) castConnect(c);
@@ -3588,10 +3587,6 @@ window.addEventListener('beforeunload', e => {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
   if (!/^https?:$/.test(location.protocol)) {
-    const d = document.getElementById('dlLink');
-    const ds = document.getElementById('dlSep');
-    if (d) d.style.display = 'none';   // download link only makes sense hosted
-    if (ds) ds.style.display = 'none';
     const cl = document.getElementById('coffeeLink');
     if (cl) cl.href = 'https://cuetheshow.com/ticket.html';
     const al = document.getElementById('aboutLink');
@@ -3655,6 +3650,7 @@ window.addEventListener('beforeunload', e => {
       const cc = localStorage.getItem(CAST_LS);
       if (cc) castConnect(cc);   // survive a mid-show reload
     } catch (e) {}
+    if (new URLSearchParams(location.search).has('display')) startDisplay();
   }
 
   window.appReady = true;   // init (incl. async storage reads) is complete
