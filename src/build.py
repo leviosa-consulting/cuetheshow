@@ -10,7 +10,8 @@ Variants:
 Outputs:
   ../subtitle-console.html        full (local dev / offline)
   ../subtitle-console-lite.html   slim (local lite)
-  ../docs/index.html              slim (hosted — ~100 KB page)
+  ../docs/index.html              landing page (copied from landing.html)
+  ../docs/console.html            slim (the hosted console — ~100 KB page)
   ../docs/lite.html               slim (kept for old links)
   ../docs/cuetheshow-offline.html full (the downloadable offline copy)
   ../docs/pdf.min.js, pdf.worker.min.js  fetched on demand by the slim build
@@ -26,7 +27,8 @@ slim = tpl.replace('<!--PDFWORKER-->', '').replace('<!--PDFJS-->', '')
 targets = [
     ('subtitle-console.html', full),
     ('subtitle-console-lite.html', slim),
-    (os.path.join('docs', 'index.html'), slim),
+    (os.path.join('docs', 'console.html'), slim),
+    (os.path.join('docs', 'index.html'), open(os.path.join(d, 'landing.html')).read()),
     (os.path.join('docs', 'lite.html'), slim),
     (os.path.join('docs', 'cuetheshow-offline.html'), full),
 ]

@@ -2,7 +2,7 @@
   "name": "CueTheShow",
   "short_name": "CueTheShow",
   "description": "Music & subtitle cue console for live performance. Free, offline, private.",
-  "start_url": "./",
+  "start_url": "console.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#16181d",

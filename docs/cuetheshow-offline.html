@@ -1663,8 +1663,8 @@ function bindControls() {
     } else {
       const c = await ctsPrompt(
         'Show subtitles on ANOTHER machine:\n\n' +
-        '1. On that machine, open ' + location.host + '\n' +
-        '2. Tap the show name (top left), then “Use this screen as a display”\n' +
+        '1. On that machine, open ' + location.host + ' and choose Open the console\n' +
+        '2. Click “Use this screen as a display” on its opening screen\n' +
         '3. A 4-letter code appears on its screen\n\n' +
         'Enter that code:', '', 'Cast');
       if (c) castConnect(c);
