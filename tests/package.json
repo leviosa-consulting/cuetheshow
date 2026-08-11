@@ -1,0 +1,11 @@
+{
+  "name": "cuetheshow-tests",
+  "private": true,
+  "description": "Browser-driven test suites for CueTheShow. Run: npm install, then node <suite>_test.js",
+  "dependencies": {
+    "jsqr": "^1.4.0",
+    "pngjs": "^7.0.0",
+    "puppeteer-core": "^25.5.0",
+    "ws": "^8.21.3"
+  }
+}
