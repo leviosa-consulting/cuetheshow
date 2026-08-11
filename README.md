@@ -48,8 +48,9 @@ cue lists never leave your device — there is no server, no upload, no account,
 
 ## In a pinch, offline
 
-The "download offline copy" link on the load screen gives you a single HTML file that is
-the entire app — copy it to a USB stick, open it in Chrome at the venue, done.
+The "Download the offline copy" link on [cuetheshow.com](https://cuetheshow.com) gives you
+a single HTML file that is the entire app — copy it to a USB stick, open it in Chrome at
+the venue, done.
 
 ## Development
 

@@ -12,4 +12,4 @@ for manual runs. `verify_qr.js` decodes the payment QR on docs/ticket.html and
 checks the Copy button.
 
 Suites rebuild their own fixtures (shows, cues, generated WAVs) and assume the
-built app files exist: run `python3 src/build.py` first after template changes.
+built app files exist: run `python3 src/build.py` first after cloning and after any template change.
