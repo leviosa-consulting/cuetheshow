@@ -604,7 +604,8 @@
      Runs entirely in your browser: your script and audio never leave this device.
      <a id="dlLink" href="cuetheshow-offline.html" download="cuetheshow.html">download offline copy</a><span id="dlSep"> · </span>
      <a href="https://github.com/leviosa-consulting/cuetheshow" target="_blank" rel="noopener">source</a> ·
-     <a id="coffeeLink" href="ticket.html" target="_blank" rel="noopener">send me a ticket to your show</a></p>
+     <a id="coffeeLink" href="ticket.html" target="_blank" rel="noopener">send me a ticket to your show</a> ·
+     <a id="aboutLink" href="index.html?welcome" target="_blank" rel="noopener">about CueTheShow</a></p>
 
 </div>
 
@@ -3593,6 +3594,8 @@ window.addEventListener('beforeunload', e => {
     if (ds) ds.style.display = 'none';
     const cl = document.getElementById('coffeeLink');
     if (cl) cl.href = 'https://cuetheshow.com/ticket.html';
+    const al = document.getElementById('aboutLink');
+    if (al) al.href = 'https://cuetheshow.com/?welcome';
   }
   if (navigator.maxTouchPoints > 0 || 'ontouchstart' in window ||
       (window.matchMedia && matchMedia('(pointer: coarse)').matches)) {
