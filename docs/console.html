@@ -240,7 +240,29 @@
     color: var(--dim); font-size: 13px;
   }
   #musicTransport .master input { flex: 1; }
-  .mcueRow { display: flex; gap: 8px; align-items: baseline; padding: 5px 8px; border-radius: 5px; cursor: pointer; font-size: 13px; }
+  #volStrip { display: none; }
+  body.mode-music #volStrip {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    position: fixed; left: 6px; top: 14px; bottom: 14px; width: 46px; z-index: 40;
+  }
+  #vsTrack {
+    flex: 1; width: 16px; background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 9px; position: relative; cursor: pointer; touch-action: none;
+  }
+  #vsFill {
+    position: absolute; left: 1px; right: 1px; bottom: 1px; border-radius: 7px;
+    background: var(--accent); opacity: .85; height: 100%;
+  }
+  #halfBtn { width: 46px; padding: 9px 0; font-size: 12px; }
+  #halfBtn.on { background: var(--accent-soft); border-color: var(--accent); }
+  body.mode-music #musicTransport .master { display: none; }
+  body.mode-music #topBar { padding-left: 64px; }
+  #musicList { display: flex; flex-direction: column; gap: 6px; }
+  .mcueRow {
+    display: flex; gap: 8px; align-items: baseline; padding: 6px 8px;
+    border: 1px solid var(--border); border-radius: 6px;
+    cursor: pointer; font-size: 13px;
+  }
   .mcueRow:hover { background: var(--panel2); }
   .mcueRow.standby { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
   .mcueRow .grip {
@@ -525,6 +547,7 @@
       border-left: none; border-top: 1px solid var(--border);
     }
     #musicTab { flex: none; overflow: visible; }
+    body.mode-music #musicTab { margin-left: 56px; margin-right: 8px; width: auto; }
     #cuesTab { flex: none; }
     #cueList { flex: none; max-height: 430px; overflow-y: auto; }
     #keysHint { display: none; }   /* no keyboard on a phone */
@@ -751,6 +774,11 @@
       </div>
     </div>
   </div>
+</div>
+
+<div id="volStrip">
+  <div id="vsTrack"><div id="vsFill"></div></div>
+  <button id="halfBtn" tabindex="-1" title="Dip the volume to half; tap again to bring it back">50%</button>
 </div>
 
 <div id="displayStage">
@@ -2517,8 +2545,32 @@ function renderMusic() {
   renderMusicStandby();
   renderMusicList();
   renderPlayers();
+  updateMasterUI();
+}
+
+function updateMasterUI() {
   $('masterCtl').value = Math.round(masterVol * 100);
   $('masterVal').textContent = Math.round(masterVol * 100) + '%';
+  $('vsFill').style.height = Math.round(masterVol * 100) + '%';
+}
+
+let masterAnim = null;
+let dipRestore = null;
+function fadeMasterTo(target) {
+  if (masterAnim) clearInterval(masterAnim);
+  const step = (target - masterVol) / 12;   // ~0.6s in 50ms ticks
+  if (!step) return;
+  masterAnim = setInterval(() => {
+    masterVol = step > 0 ? Math.min(target, masterVol + step)
+                         : Math.max(target, masterVol + step);
+    players.forEach(applyVol);
+    updateMasterUI();
+    if (masterVol === target) { clearInterval(masterAnim); masterAnim = null; saveMusic(); }
+  }, 50);
+}
+function clearDip() {
+  dipRestore = null;
+  $('halfBtn').classList.remove('on');
 }
 
 function setRightTab(t) {
@@ -2545,10 +2597,38 @@ function bindMusic() {
   });
   $('masterCtl').addEventListener('input', e => {
     masterVol = (+e.target.value || 0) / 100;
-    $('masterVal').textContent = e.target.value + '%';
+    clearDip();
     players.forEach(applyVol);
+    updateMasterUI();
     saveMusic();
   });
+  $('halfBtn').addEventListener('click', () => {
+    if (dipRestore == null) {
+      dipRestore = masterVol;
+      $('halfBtn').classList.add('on');
+      fadeMasterTo(masterVol / 2);
+    } else {
+      fadeMasterTo(dipRestore);
+      clearDip();
+    }
+  });
+  const vsTrack = $('vsTrack');
+  const vsFromY = e => {
+    const r = vsTrack.getBoundingClientRect();
+    masterVol = Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / r.height));
+    clearDip();
+    players.forEach(applyVol);
+    updateMasterUI();
+  };
+  vsTrack.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    try { vsTrack.setPointerCapture(e.pointerId); } catch (err) {}
+    vsTrack._drag = true;
+    vsFromY(e);
+  });
+  vsTrack.addEventListener('pointermove', e => { if (vsTrack._drag) vsFromY(e); });
+  vsTrack.addEventListener('pointerup', () => { vsTrack._drag = false; saveMusic(); });
+  vsTrack.addEventListener('pointercancel', () => { vsTrack._drag = false; });
   const addRow = $('musicAddRow');
   const mfi = $('musicFileInput');
   addRow.addEventListener('click', () => mfi.click());

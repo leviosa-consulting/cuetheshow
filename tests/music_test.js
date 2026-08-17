@@ -240,6 +240,31 @@ const ROOT = require('path').resolve(__dirname, '..');
     els[1].textContent.includes('themeA') &&
     els[2].textContent.includes('themeB')), 'added batch is sorted by filename');
 
+  // Vertical volume strip + 50% dip (music mode)
+  await page.evaluate(() => { appMode = 'music'; applyMode(); });
+  await new Promise(r => setTimeout(r, 300));
+  check(await page.$eval('#volStrip', el => getComputedStyle(el).display === 'flex'), 'volume strip appears in music mode');
+  check(await page.$eval('#musicTransport .master', el => getComputedStyle(el).display === 'none'), 'horizontal Vol row hidden in music mode');
+  const vsVal = await page.evaluate(() => {
+    const tr = document.getElementById('vsTrack');
+    const r = tr.getBoundingClientRect();
+    const ev = ty => new PointerEvent(ty, { bubbles: true, pointerId: 2, clientY: r.top + r.height * 0.25, clientX: r.left + 4 });
+    tr.dispatchEvent(ev('pointerdown'));
+    tr.dispatchEvent(ev('pointerup'));
+    return masterVol;
+  });
+  check(Math.abs(vsVal - 0.75) < 0.04, 'strip tap sets master volume (' + vsVal.toFixed(2) + ')');
+  await page.click('#halfBtn');
+  await new Promise(r => setTimeout(r, 900));
+  const dipped = await page.evaluate(() => masterVol);
+  check(Math.abs(dipped - vsVal / 2) < 0.04, 'dip button fades to half (' + dipped.toFixed(2) + ')');
+  await page.click('#halfBtn');
+  await new Promise(r => setTimeout(r, 900));
+  const restored = await page.evaluate(() => masterVol);
+  check(Math.abs(restored - vsVal) < 0.04, 'dip button restores the level (' + restored.toFixed(2) + ')');
+  await page.evaluate(() => { appMode = 'full'; applyMode(); });
+  await new Promise(r => setTimeout(r, 200));
+
   await page.screenshot({ path: 'shot_music.png' });
   check(errors.length === 0, 'no page errors' + (errors.length ? ': ' + errors.join(' | ') : ''));
   console.log(fail ? 'MUSIC TESTS FAILED' : 'ALL MUSIC TESTS PASSED');
