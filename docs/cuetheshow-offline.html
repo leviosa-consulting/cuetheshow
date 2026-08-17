@@ -551,6 +551,9 @@
       border-left: none; border-top: 1px solid var(--border);
     }
     #musicTab { flex: none; overflow: visible; }
+    /* the header's own divider (topBar::after) is the only line here;
+       rightCol's would run full width, under the volume strip */
+    body.mode-music #rightCol { border-top: none; }
     body.mode-music #musicTab { margin-left: 56px; margin-right: 8px; width: auto; }
     #cuesTab { flex: none; }
     #cueList { flex: none; max-height: 430px; overflow-y: auto; }
