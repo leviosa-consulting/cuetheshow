@@ -240,6 +240,43 @@ const ROOT = require('path').resolve(__dirname, '..');
     els[1].textContent.includes('themeA') &&
     els[2].textContent.includes('themeB')), 'added batch is sorted by filename');
 
+  // Timed level changes: 100% -> 30% at 1s -> 80% at 3s
+  await page.evaluate(() => newShow('Level plan'));
+  await new Promise(r => setTimeout(r, 600));
+  await page.evaluate(async () => {
+    const sr = 8000, secs = 20, n = sr * secs;
+    const buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    const ws = (o, s) => [...s].forEach((ch, i) => v.setUint8(o + i, ch.charCodeAt(0)));
+    ws(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); ws(8, 'WAVEfmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true);
+    v.setUint16(34, 16, true); ws(36, 'data'); v.setUint32(40, n * 2, true);
+    for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.sin(i / 8) * 8000, true);
+    await addAudioFiles([new File([buf], 'bed.wav', { type: 'audio/wav' })]);
+  });
+  await new Promise(r => setTimeout(r, 700));
+  await page.evaluate(() => {
+    const c = musicCues[0];
+    c.step1Vol = 0.3; c.step1At = 1; c.step2Vol = 0.8; c.step2At = 3;
+    musicStandby = 0; saveMusic(); renderMusic();
+    $('loadScreen').style.display = 'none';      // a fresh show opens on the
+    $('console').classList.add('active');        // load screen; GO needs the console
+  });
+  check(await page.$$eval('.mcueRow .sum', els =>
+    els[0].textContent.includes('then 30% at 1s') && els[0].textContent.includes('then 80% at 3s')),
+    'level plan shows in the cue summary');
+  await page.keyboard.press('Enter');
+  await new Promise(r => setTimeout(r, 400));
+  check(await page.evaluate(() => players[0] && Math.abs(players[0].target - 1) < 0.01), 'starts at its own level');
+  const lvl1 = await page.waitForFunction(() => players[0] && Math.abs(players[0].vol - 0.3) < 0.05, { timeout: 6000 })
+    .then(() => true).catch(() => false);
+  check(lvl1, 'drops to the second level on time');
+  const lvl2 = await page.waitForFunction(() => players[0] && Math.abs(players[0].vol - 0.8) < 0.05, { timeout: 8000 })
+    .then(() => true).catch(() => false);
+  check(lvl2, 'rises to the third level on time');
+  await page.keyboard.press('x');
+  await new Promise(r => setTimeout(r, 400));
+
   // Vertical volume strip + 50% dip (music mode)
   await page.evaluate(() => { appMode = 'music'; applyMode(); });
   await new Promise(r => setTimeout(r, 300));

@@ -821,7 +821,9 @@
         Each cue has its own volume, fades, loop and timing settings (✎). At show
         time, hit <em>GO</em><span class="hkeys"> (<kbd>⏎</kbd>)</span> for each cue.
         A new cue in group A replaces the old one; groups B, C and D play alongside;
-        an "on top" cue is never replaced.</li>
+        an "on top" cue is never replaced. A cue can also change its own level as
+        it plays (say 100%, then 30% half a minute in), so music settles under
+        dialogue without anyone touching a fader.</li>
       <li><strong>Subtitles (optional)</strong>: switch Mode to
         <em>Music + subtitles</em> in SETUP, then drop a script PDF or paste text.
         It becomes cues of about 8 words each. <code>*italic*</code>,
@@ -1864,6 +1866,7 @@ async function addAudioFiles(files) {
       group: 'A', volume: 1, fadeIn: 0, fadeOut: 2, loop: false,
       startAt: 0, endAt: null, followMode: 'none', followDelay: 3,
       linkCue: null, linkMode: 'auto', duck: null,
+      step1Vol: null, step1At: null, step2Vol: null, step2At: null,
       duration: null,
     };
     try { await audioPut(audioKey(cue), f); } catch (e) {
@@ -1924,6 +1927,7 @@ function ensureFadeLoop() {
       }
       applyVol(p);
       if (p.vol === 0 && p.target === 0) { removePlayer(p); continue; }
+      runSteps(p);
       const c = p.cue;
       if (c.endAt && p.a.currentTime >= c.endAt) {
         if (c.loop) p.a.currentTime = c.startAt || 0;
@@ -1939,8 +1943,36 @@ function setFade(p, target, seconds) {
   p.target = target;
   const dist = Math.abs(target - p.vol);
   p.rate = seconds > 0.01 ? dist / seconds : 1000;
-  if (target === 0) releaseDucks(p);   // a dying cue lets go of its ducking
+  if (target === 0) {
+    releaseDucks(p);        // a dying cue lets go of its ducking
+    p.s1 = p.s2 = true;     // ...and stops waiting for level changes
+  }
   ensureFadeLoop();
+}
+
+/* Timed level changes: a cue can settle to a different level partway
+   through (a theme dropping under dialogue, then lifting again). Two
+   points, each measured from the moment the cue starts. */
+const STEP_GLIDE = 2;
+function stepLevel(p, level) {
+  if (p.duckBase != null && p.duckMap && p.duckMap.size) {
+    p.duckBase = level;   // ducked right now: this becomes what it returns to
+    setFade(p, Math.min(level, ...p.duckMap.values()), STEP_GLIDE);
+  } else {
+    setFade(p, level, STEP_GLIDE);
+  }
+}
+function runSteps(p) {
+  const c = p.cue;
+  const el = p.a.currentTime - (c.startAt || 0);
+  if (!p.s1 && c.step1Vol != null && c.step1At != null && el >= c.step1At) {
+    p.s1 = true;
+    stepLevel(p, c.step1Vol);
+  }
+  if (!p.s2 && c.step2Vol != null && c.step2At != null && el >= c.step2At) {
+    p.s2 = true;
+    stepLevel(p, c.step2Vol);
+  }
 }
 
 // Ducking: a cue with `duck` set pulls every already-playing track down
@@ -2016,6 +2048,7 @@ async function fireMusicCue(i) {
     vol: cue.fadeIn > 0 ? 0 : cue.volume,
     target: cue.volume, rate: 1000,
     paused: false, followTimer: null, row: null,
+    s1: false, s2: false,
   };
   wireGain(p);
   applyVol(p);
@@ -2160,6 +2193,12 @@ function fmtTime(s) {
 
 function musicCueSummary(c) {
   const bits = [Math.round(c.volume * 100) + '%'];
+  if (c.step1Vol != null && c.step1At != null) {
+    bits.push('then ' + Math.round(c.step1Vol * 100) + '% at ' + c.step1At + 's');
+  }
+  if (c.step2Vol != null && c.step2At != null) {
+    bits.push('then ' + Math.round(c.step2Vol * 100) + '% at ' + c.step2At + 's');
+  }
   if (c.duck != null) bits.push('lowers others to ' + Math.round(c.duck * 100) + '%');
   if (c.fadeIn) bits.push('in ' + c.fadeIn + 's');
   bits.push('out ' + c.fadeOut + 's');
@@ -2359,6 +2398,35 @@ function buildMusicEditor(c) {
   const vol = num(Math.round(c.volume * 100), 5, 0);
   vol.max = 100;
   vol.addEventListener('input', () => { c.volume = Math.max(0, Math.min(1, (+vol.value || 0) / 100)); });
+  const pctField = val => {
+    const i = num(val != null ? Math.round(val * 100) : null, 5, 0);
+    i.max = 100;
+    i.placeholder = 'no change';
+    return i;
+  };
+  const toPct = v => (v === '' ? null : Math.max(0, Math.min(1, (+v || 0) / 100)));
+  const toSecs = v => (v === '' ? null : Math.max(0, +v || 0));
+  const s1v = pctField(c.step1Vol);
+  const s1a = num(c.step1At, 0.5);
+  const s2v = pctField(c.step2Vol);
+  const s2a = num(c.step2At, 0.5);
+  [s1a, s2a].forEach(i => { i.placeholder = 'seconds'; });
+  s1v.addEventListener('input', () => { c.step1Vol = toPct(s1v.value); syncSteps(); });
+  s1a.addEventListener('input', () => { c.step1At = toSecs(s1a.value); syncSteps(); });
+  s2v.addEventListener('input', () => { c.step2Vol = toPct(s2v.value); });
+  s2a.addEventListener('input', () => { c.step2At = toSecs(s2a.value); });
+  const s1vF = field('Then change to (%)', s1v);
+  const s1aF = field('…how many seconds in', s1a);
+  const s2vF = field('And then to (%)', s2v);
+  const s2aF = field('…how many seconds in', s2a);
+  // The second change appears once the first is in use. A whole grid row
+  // hides at once, so the pairing of the rows below is untouched.
+  const syncSteps = () => {
+    const show = (c.step1Vol != null && c.step1At != null) ||
+                 (c.step2Vol != null && c.step2At != null);
+    [s2vF, s2aF].forEach(el => { el.style.display = show ? '' : 'none'; });
+  };
+  syncSteps();
   const duck = num(c.duck != null ? Math.round(c.duck * 100) : null, 5, 0);
   duck.max = 100;
   duck.placeholder = 'no ducking';
@@ -2444,6 +2512,8 @@ function buildMusicEditor(c) {
   ed.append(
     field('Name', name, true),
     field('Group', grp), field('Volume %', vol),
+    s1vF, s1aF,
+    s2vF, s2aF,
     field('While this plays, lower other tracks to (%)', duck), loopWrap,
     field('Fade in (s)', fin), field('Fade out (s)', fout),
     field('Start at (s)', st), field('End at (s)', en),

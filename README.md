@@ -23,6 +23,8 @@ cue lists never leave your device — there is no server, no upload, no account,
   start/end trims, auto-follow (together / after delay / at track end)
 - Groups: independent beds run simultaneously (ambience under themes); "stack" cues
   layer on top; ducking pulls other tracks down while a cue plays and restores them after
+- A cue can change its own level as it plays: start at one volume, settle to another
+  after so many seconds, and lift again later
 - Link a music cue to a subtitle line: fire automatically when the line is reached, or
   get a clear reminder and fire it yourself
 - Panic fade, pause/resume, master volume — audio is stored in the browser, so a
