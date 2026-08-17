@@ -817,13 +817,12 @@
     <button id="helpClose" tabindex="-1">×</button>
     <h2>Running a show in three steps</h2>
     <ol>
-      <li><strong>Music</strong>: add your audio files and put them in show order.
+      <li><strong>Music</strong>: add your audio files, then drag the ⠿ handle on
+        each row to put them in show order (dragging works with a finger too).
         Each cue has its own volume, fades, loop and timing settings (✎). At show
         time, hit <em>GO</em><span class="hkeys"> (<kbd>⏎</kbd>)</span> for each cue.
         A new cue in group A replaces the old one; groups B, C and D play alongside;
-        an "on top" cue is never replaced. A cue can also change its own level as
-        it plays (say 100%, then 30% half a minute in), so music settles under
-        dialogue without anyone touching a fader.</li>
+        an "on top" cue is never replaced.</li>
       <li><strong>Subtitles (optional)</strong>: switch Mode to
         <em>Music + subtitles</em> in SETUP, then drop a script PDF or paste text.
         It becomes cues of about 8 words each. <code>*italic*</code>,
@@ -840,11 +839,25 @@
       <tr><td><kbd>B</kbd></td><td>blank the screen</td><td><kbd>P</kbd></td><td>pause / resume</td></tr>
       <tr><td><kbd>N</kbd></td><td>insert a cue</td><td><kbd>X</kbd></td><td>stop all (twice = instant)</td></tr>
     </table>
+    <p><strong>Volume:</strong> the master level controls everything playing at
+      once. In music-only mode it is the tall slider down the left edge; otherwise
+      it is the <em>Vol</em> row under the buttons. The <em>50%</em> button halves
+      that level in one tap and then reads <em>100%</em>, so a second tap takes you
+      back to full.</p>
+    <p><strong>When a cue should get quieter:</strong> there are two ways, and the
+      difference is what causes the change. If another sound is the reason, set
+      <em>While this plays, lower other tracks to</em> on the cue that interrupts:
+      everything else drops while it sounds and comes back when it ends. If the
+      clock is the reason, set <em>Then change to</em> on the cue itself and give it
+      a number of seconds: that cue moves to the new level on its own, and a second
+      change appears once you use the first. Either way, nobody has to touch a
+      fader during the show.</p>
     <p><strong>Second screen:</strong> <em>Projector view</em> opens the output on
-      this machine. To use another machine as the screen: open CueTheShow there,
-      tap the show name, then <em>🖵 Use this screen as a display</em>. Enter its
-      4-letter code here under SETUP → <em>Cast to display</em>. Cues follow
-      instantly and both ends reconnect on their own.</p>
+      this machine. To use another machine as the screen: open cuetheshow.com
+      there and choose <em>use this screen as a display</em> at the bottom of the
+      page. A 4-letter code appears on it. Enter that code here under SETUP →
+      <em>Cast to display</em>. Cues follow instantly and both ends reconnect on
+      their own.</p>
     <p>Everything is saved in this browser and restores when you reopen. Switch or
       add shows from the show name in the top bar. ⇩ on a show card makes one file
       with script, music and audio. Drop that file on any other machine to move
