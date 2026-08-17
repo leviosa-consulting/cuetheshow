@@ -257,11 +257,13 @@ const ROOT = require('path').resolve(__dirname, '..');
   await page.click('#halfBtn');
   await new Promise(r => setTimeout(r, 900));
   const dipped = await page.evaluate(() => masterVol);
-  check(Math.abs(dipped - vsVal / 2) < 0.04, 'dip button fades to half (' + dipped.toFixed(2) + ')');
+  check(Math.abs(dipped - vsVal / 2) < 0.04, 'dip button fades to half of current (' + dipped.toFixed(2) + ')');
+  check(await page.$eval('#halfBtn', el => el.textContent) === '100%', 'dipped button offers 100%');
   await page.click('#halfBtn');
   await new Promise(r => setTimeout(r, 900));
   const restored = await page.evaluate(() => masterVol);
-  check(Math.abs(restored - vsVal) < 0.04, 'dip button restores the level (' + restored.toFixed(2) + ')');
+  check(Math.abs(restored - 1) < 0.01, 'second tap returns to full volume (' + restored.toFixed(2) + ')');
+  check(await page.$eval('#halfBtn', el => el.textContent) === '50%', 'button reads 50% again');
   await page.evaluate(() => { appMode = 'full'; applyMode(); });
   await new Promise(r => setTimeout(r, 200));
 
