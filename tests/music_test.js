@@ -158,20 +158,19 @@ const ROOT = require('path').resolve(__dirname, '..');
   check(await page.$$eval('.mcueRow', els => els[0].textContent.includes('Opening Theme')), 'editor renames cue');
 
   // Reorder
-  await page.$$eval('.mcueRow button', els => els.filter(b => b.textContent === '▼')[0].click());
+  await page.evaluate(() => moveMusicCue(0, 1));
   await sleep(150);
   check(await page.$$eval('.mcueRow', els => els[1].textContent.includes('Opening Theme')), 'reorder moves cue down');
 
-  // Drag-and-drop reorder: drag row 0 below row 2 via the grip
+  // Drag-and-drop reorder: pointer-drag row 0 below row 2 via the grip
   const dndOrder = await page.evaluate(() => {
-    const rows = document.querySelectorAll('#musicList .mcueRow');
-    const dt = new DataTransfer();
-    rows[0].querySelector('.grip').dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
+    const grip = document.querySelectorAll('#musicList .mcueRow')[0].querySelector('.grip');
     const target = document.querySelectorAll('#musicList .mcueRow')[2];
-    const r = target.getBoundingClientRect();
-    const opts = { bubbles: true, dataTransfer: dt, clientY: r.bottom - 2, clientX: r.left + 10 };
-    target.dispatchEvent(new DragEvent('dragover', opts));
-    target.dispatchEvent(new DragEvent('drop', opts));
+    const tr = target.getBoundingClientRect();
+    const ev = (type, y) => new PointerEvent(type, { bubbles: true, pointerId: 1, clientX: tr.left + 8, clientY: y });
+    grip.dispatchEvent(ev('pointerdown', grip.getBoundingClientRect().top + 4));
+    grip.dispatchEvent(ev('pointermove', tr.bottom - 2));
+    grip.dispatchEvent(ev('pointerup', tr.bottom - 2));
     return musicCues.map(c => c.name).join('|');
   });
   check(await page.$$eval('.mcueRow', els => els[2].textContent.includes('⠿')), 'rows carry a drag grip');

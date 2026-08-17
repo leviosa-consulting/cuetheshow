@@ -63,6 +63,7 @@ const ROOT = require('path').resolve(__dirname, '..');
   await sleep(600);
   if (!(await page.evaluate(() => players.length))) await sleep(900);
   check(await page.evaluate(() => players.length === 1 && players[0].a.currentTime > 0.1), 'tap GO plays audio');
+  check(await page.$$eval('.mcueRow .grip', els => els.length === 2 && els.every(g => getComputedStyle(g).display !== 'none')), 'touch: drag grips visible for reordering');
   check(await page.evaluate(() =>
     !('wakeLock' in navigator) || wakeLock !== null
   ), 'wake lock held while audio plays (or API absent)');

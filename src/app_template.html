@@ -243,11 +243,15 @@
   .mcueRow { display: flex; gap: 8px; align-items: baseline; padding: 5px 8px; border-radius: 5px; cursor: pointer; font-size: 13px; }
   .mcueRow:hover { background: var(--panel2); }
   .mcueRow.standby { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
-  .mcueRow .grip { cursor: grab; color: var(--dim); flex: 0 0 auto; font-size: 12px; user-select: none; }
+  .mcueRow .grip {
+    cursor: grab; color: var(--dim); flex: 0 0 auto; font-size: 12px;
+    user-select: none; -webkit-user-select: none; touch-action: none;
+    padding: 2px 6px; margin: -2px -2px -2px -4px;
+  }
   .mcueRow.dragging { opacity: .45; }
   .mcueRow.dropBefore { box-shadow: inset 0 2px 0 var(--accent); }
   .mcueRow.dropAfter { box-shadow: inset 0 -2px 0 var(--accent); }
-  body.touch .mcueRow .grip, body.show-locked .mcueRow .grip { display: none; }
+  body.show-locked .mcueRow .grip { display: none; }
   .mcueRow .num { flex: 0 0 20px; text-align: right; color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
   .mcueRow .mname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mcueRow .badge {
@@ -2206,20 +2210,30 @@ function renderMusicList() {
     grip.className = 'grip';
     grip.textContent = '⠿';
     grip.title = 'Drag to reorder';
-    grip.draggable = true;
     grip.addEventListener('click', e => e.stopPropagation());
-    grip.addEventListener('dragstart', e => {
-      if (isLocked()) { e.preventDefault(); return; }
+    grip.addEventListener('pointerdown', e => {
+      if (isLocked()) return;
+      e.preventDefault();
+      e.stopPropagation();
+      try { grip.setPointerCapture(e.pointerId); } catch (err) {}
       dragMi = i;
-      e.dataTransfer.effectAllowed = 'move';
-      try { e.dataTransfer.setData('text/plain', String(i)); } catch (err) {}
-      try { e.dataTransfer.setDragImage(row, 24, 14); } catch (err) {}
       row.classList.add('dragging');
     });
-    grip.addEventListener('dragend', () => {
+    grip.addEventListener('pointermove', e => {
+      if (dragMi == null) return;
+      dragOverY(e.clientY);
+    });
+    grip.addEventListener('pointerup', e => {
+      if (dragMi == null) return;
+      const from = dragMi;
       dragMi = null;
-      document.querySelectorAll('.mcueRow').forEach(r =>
-        r.classList.remove('dragging', 'dropBefore', 'dropAfter'));
+      const to = dropIndexAt(e.clientY, from);
+      clearDropMarks();
+      moveMusicCueTo(from, to);
+    });
+    grip.addEventListener('pointercancel', () => {
+      dragMi = null;
+      clearDropMarks();
     });
     const num = document.createElement('span');
     num.className = 'num';
@@ -2248,8 +2262,6 @@ function renderMusicList() {
       b.addEventListener('click', e => { e.stopPropagation(); fn(); });
       return b;
     };
-    row.appendChild(mkBtn('▲', 'Move up', () => moveMusicCue(i, -1)));
-    row.appendChild(mkBtn('▼', 'Move down', () => moveMusicCue(i, 1)));
     row.appendChild(mkBtn('✎', 'Edit settings', () => {
       if (isLocked()) return lockToast();
       musicEditorOpenId = musicEditorOpenId === c.id ? null : c.id;
@@ -2267,27 +2279,6 @@ function renderMusicList() {
       if (isLocked()) return lockToast();
       musicEditorOpenId = c.id;
       renderMusicList();
-    });
-    row.addEventListener('dragover', e => {
-      if (dragMi == null) return;
-      e.preventDefault();
-      e.stopPropagation();
-      e.dataTransfer.dropEffect = 'move';
-      const before = e.offsetY < row.offsetHeight / 2;
-      row.classList.toggle('dropBefore', before);
-      row.classList.toggle('dropAfter', !before);
-    });
-    row.addEventListener('dragleave', () => row.classList.remove('dropBefore', 'dropAfter'));
-    row.addEventListener('drop', e => {
-      if (dragMi == null) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const before = e.offsetY < row.offsetHeight / 2;
-      let to = before ? i : i + 1;
-      if (dragMi < to) to--;
-      const from = dragMi;
-      dragMi = null;
-      moveMusicCueTo(from, to);
     });
     list.appendChild(row);
     if (musicEditorOpenId === c.id) list.appendChild(buildMusicEditor(c));
@@ -2463,6 +2454,31 @@ function moveMusicCue(i, dir) {
 }
 
 let dragMi = null;
+function musicRows() { return [...document.querySelectorAll('#musicList .mcueRow')]; }
+function clearDropMarks() {
+  musicRows().forEach(r => r.classList.remove('dragging', 'dropBefore', 'dropAfter'));
+}
+function dropIndexAt(y, from) {
+  const rows = musicRows();
+  for (let k = 0; k < rows.length; k++) {
+    const r = rows[k].getBoundingClientRect();
+    if (y < r.top + r.height / 2) return from < k ? k - 1 : k;
+  }
+  return rows.length - 1;
+}
+function dragOverY(y) {
+  const rows = musicRows();
+  rows.forEach(r => r.classList.remove('dropBefore', 'dropAfter'));
+  // keep the list moving when a touch drag reaches the screen edge
+  const sc = document.body.classList.contains('mode-music') ? $('console') : $('musicTab');
+  if (y < 110) sc.scrollTop -= 8;
+  else if (y > innerHeight - 70) sc.scrollTop += 8;
+  for (let k = 0; k < rows.length; k++) {
+    const r = rows[k].getBoundingClientRect();
+    if (y < r.top + r.height / 2) { rows[k].classList.add('dropBefore'); return; }
+  }
+  if (rows.length) rows[rows.length - 1].classList.add('dropAfter');
+}
 
 async function deleteMusicCue(i) {
   if (isLocked()) return lockToast();
