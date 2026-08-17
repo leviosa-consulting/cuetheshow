@@ -1,11 +1,11 @@
 # CueTheShow
 
-**Free music & subtitle cue console for live performance — in one browser tab.**
+**Free music and subtitle cue console for live performance, in one browser tab.**
 
-🔗 **Use it now: [cuetheshow.com](https://cuetheshow.com)** — nothing to install, no account, free forever.
+🔗 **Use it now: [cuetheshow.com](https://cuetheshow.com)**. Nothing to install, no account, free forever.
 
 Built for small theatre and dance productions where one person runs everything: fire music
-and sound cues from a laptop or phone — and, when the show needs them, project subtitles too.
+and sound cues from a laptop or phone, and project subtitles too when the show needs them.
 
 ## Why this exists
 
@@ -14,24 +14,25 @@ community production that needs *play the next track, show the next line*. CueTh
 the simple version, done carefully, and given away.
 
 **Your work stays yours.** Everything runs inside your browser. Scripts, audio files, and
-cue lists never leave your device — there is no server, no upload, no account, no tracking.
+cue lists never leave your device. There is no server, no upload, no account, no tracking.
 
 ## What it does
 
 **Music & sound**
-- Cue stack with its own GO — crossfades, fade in/out, per-cue volume, loop,
-  start/end trims, auto-follow (together / after delay / at track end)
-- Groups: independent beds run simultaneously (ambience under themes); "stack" cues
-  layer on top; ducking pulls other tracks down while a cue plays and restores them after
+- Music cues have their own GO: crossfades, fade in and out, per-cue volume, loop,
+  start/end trims, auto-follow (together / after a delay / at track end)
+- Reorder cues by dragging the handle on each row, with a mouse or a finger
+- Groups: independent beds run simultaneously (ambience under themes); "on top" cues
+  are never replaced; a cue can lower the other tracks while it plays and restore them after
 - A cue can change its own level as it plays: start at one volume, settle to another
   after so many seconds, and lift again later
 - Link a music cue to a subtitle line: fire automatically when the line is reached, or
   get a clear reminder and fire it yourself
-- Panic fade, pause/resume, master volume — audio is stored in the browser, so a
-  restart brings the whole show back ready to play
+- Panic fade, pause and resume, and a master level with a one-tap 50% dip
+- Audio is stored in the browser, so a restart brings the whole show back ready to play
 
 **Subtitles / surtitles**
-- Load a script PDF (or paste text) — it's split into subtitle cues (~8 words, max 12);
+- Load a script PDF (or paste text). It's split into subtitle cues (~8 words, max 12);
   a new sentence always starts on a fresh screen, and stage directions in [brackets] or
   (parentheses) are stripped automatically
 - Clean 16:9 output window for the projector (double-click = fullscreen); the operator
@@ -44,14 +45,14 @@ cue lists never leave your device — there is no server, no upload, no account,
 **Operation**
 - Keyboard-first: `Space` next line, `Enter` GO, `S` fade, `X` stop, `B` blank
 - Console modes: subtitles + music, subtitles only, or music only (a standalone
-  soundboard — works great on a phone)
-- Export a whole show — audio included — as a single bundle file; drop it on any other machine
+  soundboard that works well on a phone)
+- Export a whole show, audio included, as a single bundle file; drop it on any other machine
 - Works offline after the first visit; installable to the home screen / dock
 
 ## In a pinch, offline
 
 The "Download the offline copy" link on [cuetheshow.com](https://cuetheshow.com) gives you
-a single HTML file that is the entire app — copy it to a USB stick, open it in Chrome at
+a single HTML file that is the entire app. Copy it to a USB stick, open it in Chrome at
 the venue, done.
 
 ## Development
@@ -63,8 +64,8 @@ and emits the local builds plus the hosted `docs/` files:
 python3 src/build.py
 ```
 
-Tested against real Chrome (headless) — parsing, playback, fades, persistence, mobile
-layout, and the full operator flow.
+The suites in [`tests/`](tests) drive the real app in headless Chrome: parsing, playback,
+fades, persistence, mobile layout, pairing, and the full operator flow.
 
 ## License
 

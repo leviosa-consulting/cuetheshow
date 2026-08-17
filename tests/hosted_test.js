@@ -7,6 +7,17 @@ const http = require('http');
   const server = spawn('python3', ['-m', 'http.server', '8377', '--directory', ROOT + '/docs'], { stdio: 'ignore' });
   const up = () => new Promise(res => { const rq = http.get('http://127.0.0.1:8377/', r => res(true)); rq.on('error', () => res(false)); });
   for (let i = 0; i < 40 && !(await up()); i++) await new Promise(r => setTimeout(r, 250));
+  // A server left behind by an earlier run would keep the port and serve the
+  // wrong directory, which looks like a mysterious page-load hang.
+  const code = await new Promise(res => {
+    http.get('http://127.0.0.1:8377/console.html', r => { r.resume(); res(r.statusCode); })
+        .on('error', () => res(0));
+  });
+  if (code !== 200) {
+    console.log('FAIL port 8377 is serving something else (got ' + code + '). Stop it and retry.');
+    server.kill();
+    process.exit(1);
+  }
 
   const browser = await puppeteer.launch({
     executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
