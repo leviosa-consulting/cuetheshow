@@ -29,7 +29,13 @@ const ROOT = require('path').resolve(__dirname, '..');
   await page.waitForSelector('#console.active');
   const mfi = await page.$('#musicFileInput');
   // 4 cues: theme (A), rain bed (B), rain bed 2 (B), stinger (stack)
-  await mfi.uploadFile(__dirname + '/themeA.wav', __dirname + '/themeB.wav', __dirname + '/sfx-hit.wav', __dirname + '/themeA.wav');
+  await mfi.uploadFile(__dirname + '/themeA.wav');
+  await sleep(500);
+  await mfi.uploadFile(__dirname + '/themeB.wav');
+  await sleep(500);
+  await mfi.uploadFile(__dirname + '/sfx-hit.wav');
+  await sleep(500);
+  await mfi.uploadFile(__dirname + '/themeA.wav');
   await sleep(900);
   check(await page.evaluate(() => musicCues.length === 4), 'four cues loaded');
   await page.evaluate(() => {
@@ -123,7 +129,7 @@ const ROOT = require('path').resolve(__dirname, '..');
   await sleep(1400);
   check(await page.evaluate(() => {
     const a = players.find(p => p.cue.group === 'A');
-    return a && Math.abs(a.target - 0.3) < 0.01 && Math.abs(a.a.volume - 0.3) < 0.06;
+    return a && Math.abs(a.target - 0.3) < 0.01 && Math.abs(playerLevel(a) - 0.3) < 0.06;
   }), 'B entering ducks A to 30%');
   check(await page.evaluate(() => {
     const b = players.find(p => p.cue.group === 'B');

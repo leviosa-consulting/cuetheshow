@@ -30,8 +30,12 @@ const ROOT = require('path').resolve(__dirname, '..');
 
   // Add three audio tracks
   const mfi = await page.$('#musicFileInput');
-  await mfi.uploadFile(__dirname + '/themeA.wav', __dirname + '/themeB.wav', __dirname + '/sfx-hit.wav');
-  await sleep(800);
+  await mfi.uploadFile(__dirname + '/themeA.wav');
+  await sleep(500);
+  await mfi.uploadFile(__dirname + '/themeB.wav');
+  await sleep(500);
+  await mfi.uploadFile(__dirname + '/sfx-hit.wav');
+  await sleep(500);
   check(await page.$$eval('.mcueRow', els => els.length === 3), 'three music cues created');
   check(await page.$eval('#musicStandbyLine', el => el.textContent.includes('1. themeA')), 'standby on first cue');
   check(await page.$$eval('.mcueRow .sum', els => els[0].textContent.includes('100%')), 'cue summary rendered');
@@ -69,8 +73,11 @@ const ROOT = require('path').resolve(__dirname, '..');
   await sleep(100);
   check(await page.evaluate(() => {
     const p = players.find(x => x.cue.name === 'themeB');
-    return Math.abs(p.a.volume - p.vol * 0.4) < 0.02;
+    return Math.abs(playerLevel(p) - p.vol * 0.4) < 0.02;
   }), 'master volume applied live');
+  await page.$eval('#masterCtl', el => { el.value = 0; el.dispatchEvent(new Event('input')); });
+  await sleep(100);
+  check(await page.evaluate(() => players.every(p => playerLevel(p) === 0)), 'master at 0 silences output');
   await page.$eval('#masterCtl', el => { el.value = 100; el.dispatchEvent(new Event('input')); });
 
   // Pause / resume
@@ -155,6 +162,23 @@ const ROOT = require('path').resolve(__dirname, '..');
   await sleep(150);
   check(await page.$$eval('.mcueRow', els => els[1].textContent.includes('Opening Theme')), 'reorder moves cue down');
 
+  // Drag-and-drop reorder: drag row 0 below row 2 via the grip
+  const dndOrder = await page.evaluate(() => {
+    const rows = document.querySelectorAll('#musicList .mcueRow');
+    const dt = new DataTransfer();
+    rows[0].querySelector('.grip').dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
+    const target = document.querySelectorAll('#musicList .mcueRow')[2];
+    const r = target.getBoundingClientRect();
+    const opts = { bubbles: true, dataTransfer: dt, clientY: r.bottom - 2, clientX: r.left + 10 };
+    target.dispatchEvent(new DragEvent('dragover', opts));
+    target.dispatchEvent(new DragEvent('drop', opts));
+    return musicCues.map(c => c.name).join('|');
+  });
+  check(await page.$$eval('.mcueRow', els => els[2].textContent.includes('⠿')), 'rows carry a drag grip');
+  check(dndOrder === 'Opening Theme|sfx-hit|themeB', 'drag drop reorders the list (' + dndOrder + ')');
+  await page.evaluate(() => moveMusicCueTo(2, 0));   // put themeB back on top
+  await sleep(150);
+
   // Music delete is undoable, audio survives
   await page.$$eval('.mcueRow button.mdel', els => els[0].click());
   await modalOk();
@@ -205,6 +229,18 @@ const ROOT = require('path').resolve(__dirname, '..');
   check(await page.$$eval('.mcueRow .badge.warn', els => els.length === 2), 'dropped file re-matches by filename');
 
   // Screenshot
+  // A new batch of files sorts alphabetically regardless of picker order
+  await page.evaluate(() => newShow('Sort check'));
+  await new Promise(r => setTimeout(r, 600));
+  const mfi3 = await page.$('#musicFileInput');
+  await mfi3.uploadFile(__dirname + '/themeB.wav', __dirname + '/themeA.wav', __dirname + '/sfx-hit.wav');
+  await new Promise(r => setTimeout(r, 900));
+  check(await page.$$eval('.mcueRow', els =>
+    els.length === 3 &&
+    els[0].textContent.includes('sfx-hit') &&
+    els[1].textContent.includes('themeA') &&
+    els[2].textContent.includes('themeB')), 'added batch is sorted by filename');
+
   await page.screenshot({ path: 'shot_music.png' });
   check(errors.length === 0, 'no page errors' + (errors.length ? ': ' + errors.join(' | ') : ''));
   console.log(fail ? 'MUSIC TESTS FAILED' : 'ALL MUSIC TESTS PASSED');
