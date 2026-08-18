@@ -114,7 +114,9 @@
     padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--border);
     flex: 0 0 auto;
   }
-  #topBar .title { font-weight: 600; display: flex; align-items: center; cursor: pointer; }
+  #topBar .title { font-weight: 600; display: flex; align-items: center; cursor: pointer; flex: 0 0 auto; }
+  #topBar #titleText { display: none; }   /* the logo is the brand up here */
+  #topBar .logoMark { margin-right: 0; }
   .logoMark {
     width: 20px; height: 20px; margin-right: 8px; flex: 0 0 auto;
     filter: drop-shadow(0 0 6px rgba(91, 157, 217, .45));
@@ -331,13 +333,16 @@
     max-width: 180px;
   }
   #showsBtn {
-    display: flex; align-items: center; gap: 8px;
-    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
-    padding: 6px 12px; font-size: 14px; border-radius: 7px;
+    display: flex; align-items: center; min-width: 0; flex: 0 1 auto;
+    background: none; border: none; color: var(--text);
+    padding: 0; font-size: 15px; font-weight: 600; border-radius: 0;
   }
-  #showsBtn:hover { border-color: var(--accent); }
-  #showsBtn .chev { color: var(--accent); font-size: 13px; line-height: 1; }
-  #showLabel { color: inherit; }
+  #showsBtn:hover { color: var(--accent); }
+  /* min-width:0 lets a long show name truncate instead of forcing the
+     header to wrap onto a second line */
+  #showLabel { color: inherit; min-width: 0; flex: 0 1 auto; display: flex; align-items: center; }
+  #showLabel .sname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #showLabel .slock { flex: 0 0 auto; margin-left: 5px; }
   #showCards {
     display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
     max-width: min(640px, 92vw);
@@ -559,6 +564,7 @@
     #cueList { flex: none; max-height: 430px; overflow-y: auto; }
     #keysHint { display: none; }   /* no keyboard on a phone */
     #topBar { flex-wrap: wrap; row-gap: 6px; }
+    #showsBtn { max-width: 50vw; }   /* keeps the ? on the first row */
     #goBtn { padding: 22px 0; }
     #transport button { padding: 16px 0; }
     #loadScreen { padding: 14px 10px; gap: 14px; }
@@ -669,7 +675,7 @@
 <div id="console">
   <div id="topBar">
     <span class="title" id="brandHome" title="All shows"><svg class="logoMark" viewBox="0 0 100 100" aria-hidden="true"><polygon points="26,18 88,50 26,82" fill="#5b9dd9"/><circle cx="80" cy="22" r="10" fill="#6fbf85"/></svg><span id="titleText">CueTheShow</span></span>
-    <button id="showsBtn" tabindex="-1" title="All shows"><span id="showLabel"></span><span class="chev">▾</span></button>
+    <button id="showsBtn" tabindex="-1" title="All shows"><span id="showLabel"></span></button>
     <span id="cueCounter"></span>
     <span class="spacer"></span>
     <button id="helpBtn" tabindex="-1" title="Quick guide">?</button>
@@ -2979,7 +2985,21 @@ function renderShowCards() {
 }
 
 function renderShowUI() {
-  $('showLabel').textContent = currentShowName() + (isLocked() ? ' 🔒' : '');
+  // The name truncates when the bar is narrow; the padlock sits outside it so
+  // a long name can never hide the fact that the show is locked.
+  const lab = $('showLabel');
+  lab.innerHTML = '';
+  const nameEl = document.createElement('span');
+  nameEl.className = 'sname';
+  nameEl.textContent = currentShowName();
+  lab.appendChild(nameEl);
+  if (isLocked()) {
+    const lk = document.createElement('span');
+    lk.className = 'slock';
+    lk.textContent = ' 🔒';
+    lab.appendChild(lk);
+  }
+  $('showsBtn').title = currentShowName() + ' · all shows';
   document.body.classList.toggle('show-locked', isLocked());
   renderShowCards();
 }
