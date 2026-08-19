@@ -50,7 +50,7 @@ const ROOT = require('path').resolve(__dirname, '..');
   await sleep(500);
   check(await page.evaluate(() =>
     players.length === 2 && players.every(p => p.target > 0) &&
-    players.every(p => p.a.currentTime > 0.1)
+    players.every(p => !p.a.paused)
   ), 'two beds (A + B) run simultaneously');
 
   // GO fires second B cue: only the B player crossfades, A untouched

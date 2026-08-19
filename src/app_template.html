@@ -212,7 +212,8 @@
   .cueItem .mlink { color: var(--accent); margin-left: 6px; cursor: default; }
   .thenRow .mlink, #nextText .mlink { color: var(--accent); margin-left: 7px; font-style: normal; }
   .playerRow {
-    display: flex; align-items: center; gap: 9px;
+    display: flex; align-items: center; gap: 9px; cursor: pointer;
+    touch-action: none; user-select: none; -webkit-user-select: none;
     background: var(--panel2); border: 1px solid var(--border);
     border-radius: 6px; padding: 6px 9px;
     position: relative; overflow: hidden;
@@ -225,7 +226,8 @@
   .playerRow .pname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .playerRow .ptime { font-variant-numeric: tabular-nums; color: var(--dim); font-size: 12px; }
   .playerRow .pstate { color: var(--accent); font-size: 11px; min-width: 54px; text-align: right; }
-  .playerRow button { padding: 3px 9px; font-size: 12px; }
+  .playerRow button { padding: 3px 9px; font-size: 12px; cursor: pointer; }
+  .playerRow:hover .pbar { background: #35506b; }
   #musicStandbyLine { color: var(--dim); font-size: 14px; }
   #musicStandbyLine strong { color: var(--text); font-weight: 600; }
   #musicTransport { display: flex; flex-direction: column; gap: 9px; }
@@ -280,6 +282,10 @@
   .mcueRow.dropBefore { box-shadow: inset 0 2px 0 var(--accent); }
   .mcueRow.dropAfter { box-shadow: inset 0 -2px 0 var(--accent); }
   body.show-locked .mcueRow .grip { display: none; }
+  .mcueRow .mdur {
+    flex: 0 0 auto; color: var(--dim); font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
   .mcueRow .num { flex: 0 0 20px; text-align: right; color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
   .mcueRow .mname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mcueRow .badge {
@@ -828,7 +834,10 @@
         Each cue has its own volume, fades, loop and timing settings (✎). At show
         time, hit <em>GO</em><span class="hkeys"> (<kbd>⏎</kbd>)</span> for each cue.
         A new cue in group A replaces the old one; groups B, C and D play alongside;
-        an "on top" cue is never replaced.</li>
+        an "on top" cue is never replaced. Each row shows how long the cue runs.
+        While a track is playing, click or drag anywhere on its row to move through
+        it;<span class="hkeys"> in music-only mode <kbd>←</kbd> and <kbd>→</kbd>
+        nudge it by 5 seconds.</span></li>
       <li><strong>Subtitles (optional)</strong>: switch Mode to
         <em>Music + subtitles</em> in SETUP, then drop a script PDF or paste text.
         It becomes cues of about 8 words each. <code>*italic*</code>,
@@ -1637,9 +1646,17 @@ function handleKey(e) {
   if (t && t.matches && t.matches('textarea, input, select')) return;
   if (!$('console').classList.contains('active')) return;
   switch (e.key) {
-    case ' ': case 'ArrowRight': case 'ArrowDown': case 'PageDown':
+    case 'ArrowRight':
+      e.preventDefault();
+      if (appMode === 'music') seekAll(5); else next();
+      break;
+    case 'ArrowLeft':
+      e.preventDefault();
+      if (appMode === 'music') seekAll(-5); else prev();
+      break;
+    case ' ': case 'ArrowDown': case 'PageDown':
       e.preventDefault(); next(); break;
-    case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
+    case 'ArrowUp': case 'PageUp':
       e.preventDefault(); prev(); break;
     case 'b': case 'B': case '.':
       e.preventDefault(); toggleBlank(); break;
@@ -1973,6 +1990,32 @@ function setFade(p, target, seconds) {
    through (a theme dropping under dialogue, then lifting again). Two
    points, each measured from the moment the cue starts. */
 const STEP_GLIDE = 2;
+// Jump to a point in the track, trims respected. Level changes are
+// re-synced so a seek past one takes effect (and seeking back undoes it).
+function seekPlayer(p, time) {
+  const c = p.cue;
+  const first = c.startAt || 0;
+  const last = c.endAt || p.a.duration || c.duration;
+  const to = Math.max(first, Math.min(isFinite(last) ? last - 0.05 : time, time));
+  try { p.a.currentTime = to; } catch (e) { return; }
+  const el = to - first;
+  const has1 = c.step1Vol != null && c.step1At != null;
+  const has2 = c.step2Vol != null && c.step2At != null;
+  p.s1 = has1 ? el >= c.step1At : true;
+  p.s2 = has2 ? el >= c.step2At : true;
+  if (p.target > 0) {
+    let lvl = c.volume;
+    if (has1 && el >= c.step1At) lvl = c.step1Vol;
+    if (has2 && el >= c.step2At && (!has1 || c.step2At >= c.step1At)) lvl = c.step2Vol;
+    stepLevel(p, lvl);
+  }
+  renderPlayers();
+}
+
+function seekAll(delta) {
+  players.forEach(p => seekPlayer(p, p.a.currentTime + delta));
+}
+
 function stepLevel(p, level) {
   if (p.duckBase != null && p.duckMap && p.duckMap.size) {
     p.duckBase = level;   // ducked right now: this becomes what it returns to
@@ -2204,6 +2247,34 @@ function pauseResumeMusic() {
 }
 
 /* ---------- music UI ---------- */
+// How long the cue actually plays, trims included (null when unknown).
+function cueLength(c) {
+  const end = c.endAt || c.duration;
+  if (end == null || !isFinite(end)) return null;
+  return Math.max(0, end - (c.startAt || 0));
+}
+
+// Older cues were stored before durations were read. Fill them in once,
+// quietly, the first time the list renders.
+const durProbed = new Set();
+function probeDuration(c) {
+  if (durProbed.has(c.id)) return;
+  durProbed.add(c.id);
+  cueUrl(c).then(url => {
+    if (!url) return;
+    const a = new Audio(url);
+    const done = () => {
+      if (isFinite(a.duration) && a.duration > 0) {
+        c.duration = a.duration;
+        saveMusic();
+        renderMusicList();
+      }
+    };
+    a.addEventListener('loadedmetadata', done, { once: true });
+    a.addEventListener('error', () => {}, { once: true });
+  }).catch(() => {});
+}
+
 function fmtTime(s) {
   if (s == null || !isFinite(s)) return '–:––';
   s = Math.max(0, Math.floor(s));
@@ -2259,6 +2330,28 @@ function renderPlayers() {
       stop.tabIndex = -1;
       stop.addEventListener('click', () => removePlayer(p));
       row.append(p.barEl, name, p.timeEl, p.stateEl, fade, stop);
+      // The whole row is the scrub bar: click or drag anywhere on it to
+      // move through the track. Buttons on the row keep their own jobs.
+      row.title = 'Click or drag to move through the track';
+      const seekFromX = e => {
+        const r = row.getBoundingClientRect();
+        const frac = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+        const c = p.cue;
+        const first = c.startAt || 0;
+        const last = c.endAt || p.a.duration || c.duration;
+        if (!isFinite(last)) return;
+        seekPlayer(p, first + frac * (last - first));
+      };
+      row.addEventListener('pointerdown', e => {
+        if (e.target.closest('button')) return;
+        e.preventDefault();
+        try { row.setPointerCapture(e.pointerId); } catch (err) {}
+        row._scrub = true;
+        seekFromX(e);
+      });
+      row.addEventListener('pointermove', e => { if (row._scrub) seekFromX(e); });
+      row.addEventListener('pointerup', () => { row._scrub = false; });
+      row.addEventListener('pointercancel', () => { row._scrub = false; });
       p.row = row;
       box.appendChild(row);
     }
@@ -2334,13 +2427,18 @@ function renderMusicList() {
     const name = document.createElement('span');
     name.className = 'mname';
     name.textContent = c.name;
+    const dur = document.createElement('span');
+    dur.className = 'mdur';
+    const len = cueLength(c);
+    dur.textContent = fmtTime(len);
+    if (len == null && c.hasAudio) probeDuration(c);
     const badge = document.createElement('span');
     badge.className = 'badge' + (c.group === 'stack' ? ' sfx' : '');
     badge.textContent = c.group === 'stack' ? 'on top' : 'grp ' + c.group;
     const sum = document.createElement('span');
     sum.className = 'sum';
     sum.textContent = musicCueSummary(c);
-    row.append(grip, num, name, badge, sum);
+    row.append(grip, num, name, dur, badge, sum);
     if (!c.hasAudio) {
       const warn = document.createElement('span');
       warn.className = 'badge warn';
