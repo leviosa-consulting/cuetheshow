@@ -39,6 +39,7 @@ const ROOT = require('path').resolve(__dirname, '..');
     return Math.abs(r.width - window.innerWidth) < 2;
   }), 'phone: rail spans full width');
   check(await page.$eval('#keysHint', el => getComputedStyle(el).display === 'none'), 'phone: keyboard legend hidden');
+  check(await page.$$eval('.mkey, .gokey', els => els.length > 0 && els.every(k => getComputedStyle(k).display === 'none')), 'phone: keyboard letters on the buttons hidden');
   check(await page.evaluate(() => {
     document.querySelector('#tabCues').click();
     const b = document.querySelector('.cueItem .del');

@@ -37,8 +37,10 @@ const ROOT = require('path').resolve(__dirname, '..');
   await mfi.uploadFile(__dirname + '/sfx-hit.wav');
   await sleep(500);
   check(await page.$$eval('.mcueRow', els => els.length === 3), 'three music cues created');
-  check(await page.$eval('#musicStandbyLine', el => el.textContent.includes('1. themeA')), 'standby on first cue');
+  check(await page.$eval('#musicStandbyLine', el => el.textContent.includes('themeA')), 'standby on first cue');
   check(await page.$$eval('.mcueRow .sum', els => els[0].textContent.includes('100%')), 'cue summary rendered');
+  check(await page.$$eval('.mcueRow .num', els => els.length === 0), 'cue rows carry no index numbers');
+  check(await page.$eval('.mcueRow button.mdel svg.binIcon', el => !!el), 'delete is a bin, not an ×');
 
   // GO fires first cue
   await page.keyboard.press('Enter');
@@ -51,7 +53,7 @@ const ROOT = require('path').resolve(__dirname, '..');
   const audioAlive = await page.evaluate(() => players[0].a.currentTime > 0.2 && !players[0].a.paused);
   if (audioAlive) check(true, 'audio actually progressing');
   else console.log('SKIP audio actually progressing (no audio output on this machine)');
-  check(await page.$eval('#musicStandbyLine', el => el.textContent.includes('2. themeB')), 'standby advanced');
+  check(await page.$eval('#musicStandbyLine', el => el.textContent.includes('themeB')), 'standby advanced');
 
   // Crossfade: set themeA fadeOut short, fire themeB
   await page.evaluate(() => { musicCues[0].fadeOut = 0.3; saveMusic(); });

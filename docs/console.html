@@ -240,6 +240,7 @@
     border-bottom-width: 2px; border-radius: 4px; padding: 0 6px;
     font-size: 11px; color: var(--dim); margin-left: 3px;
   }
+  body.touch .mkey, body.touch .gokey { display: none; }
   #musicTransport .master {
     display: flex; align-items: center; gap: 8px;
     color: var(--dim); font-size: 13px;
@@ -309,7 +310,8 @@
   }
   .mcueRow:hover button { visibility: visible; }
   .mcueRow button:hover { color: var(--text); background: none; }
-  .mcueRow button.mdel { margin-left: 14px; }
+  .mcueRow button.mdel { margin-left: 0; }
+  .binIcon { width: 15px; height: 15px; display: block; }
   .mcueRow button.mdel:hover { color: var(--danger); }
   #musicAddRow {
     text-align: center; color: var(--dim); padding: 8px;
@@ -781,7 +783,7 @@
         <div id="playersBox"></div>
         <div id="musicStandbyLine"></div>
         <div id="musicTransport">
-          <button id="goBtn" class="primary" tabindex="-1"><span id="goLabel">GO</span>&nbsp;&nbsp;⏎</button>
+          <button id="goBtn" class="primary" tabindex="-1"><span id="goLabel">GO</span><span class="gokey">&nbsp;&nbsp;⏎</span></button>
           <div id="mtRow">
             <button id="mFadeBtn" tabindex="-1">Fade <span class="mkey">S</span></button>
             <button id="mPauseBtn" tabindex="-1"><span id="pauseLabel">Pause</span> <span class="mkey">P</span></button>
@@ -1500,7 +1502,7 @@ function buildCueList() {
     add.addEventListener('click', e => { e.stopPropagation(); insertCue(i); });
     const del = document.createElement('button');
     del.className = 'del';
-    del.textContent = '×';
+    del.appendChild(trashIcon());   // same bin as the music list
     del.title = 'Delete this cue';
     del.tabIndex = -1;
     del.addEventListener('click', e => { e.stopPropagation(); deleteCue(i); });
@@ -2407,7 +2409,7 @@ function renderMusicStandby() {
     el.textContent = '';
     el.appendChild(document.createTextNode('Up next → '));
     const s = document.createElement('strong');
-    s.textContent = (musicStandby + 1) + '. ' + next.name;
+    s.textContent = next.name;
     el.appendChild(s);
     el.appendChild(document.createTextNode(
       next.group === 'stack' ? '  (stack)' : (next.group !== 'A' ? '  (group ' + next.group + ')' : '')));
@@ -2415,6 +2417,19 @@ function renderMusicStandby() {
 }
 
 let musicEditorOpenId = null;
+
+// A bin reads as "delete"; an × reads as "close".
+function trashIcon() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'binIcon');
+  svg.setAttribute('aria-hidden', 'true');
+  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  p.setAttribute('fill', 'currentColor');
+  p.setAttribute('d', 'M9 3h6l1 2h4v2H4V5h4l1-2zm-3 6h12l-1 11a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 9zm4 2v9h1.5v-9H10zm3.5 0v9H15v-9h-1.5z');
+  svg.appendChild(p);
+  return svg;
+}
 
 function renderMusicList() {
   const list = $('musicList');
@@ -2451,9 +2466,6 @@ function renderMusicList() {
       dragMi = null;
       clearDropMarks();
     });
-    const num = document.createElement('span');
-    num.className = 'num';
-    num.textContent = i + 1;
     const name = document.createElement('span');
     name.className = 'mname';
     name.textContent = c.name;
@@ -2468,7 +2480,7 @@ function renderMusicList() {
     const sum = document.createElement('span');
     sum.className = 'sum';
     sum.textContent = musicCueSummary(c);
-    row.append(grip, num, name, dur, badge, sum);
+    row.append(grip, name, dur, badge, sum);
     if (!c.hasAudio) {
       const warn = document.createElement('span');
       warn.className = 'badge warn';
@@ -2488,7 +2500,8 @@ function renderMusicList() {
       musicEditorOpenId = musicEditorOpenId === c.id ? null : c.id;
       renderMusicList();
     }));
-    const delBtn = mkBtn('×', 'Delete cue (undoable)', () => deleteMusicCue(i));
+    const delBtn = mkBtn('', 'Delete cue (undoable)', () => deleteMusicCue(i));
+    delBtn.appendChild(trashIcon());
     delBtn.classList.add('mdel');
     row.appendChild(delBtn);
     row.addEventListener('click', () => {
