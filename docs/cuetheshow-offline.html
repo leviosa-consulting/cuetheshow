@@ -845,8 +845,8 @@
         While a track is playing, click or drag anywhere on its row to move through
         it;<span class="hkeys"> in music-only mode <kbd>←</kbd> and <kbd>→</kbd>
         nudge it by 5 seconds.</span> While anything is paused, GO turns into
-        <em>Play</em> and picks that track back up instead of starting the next
-        cue.</li>
+        <em>Continue</em> and picks that track back up instead of starting the
+        next cue.</li>
       <li><strong>Subtitles (optional)</strong>: switch Mode to
         <em>Music + subtitles</em> in SETUP, then drop a script PDF or paste text.
         It becomes cues of about 8 words each. <code>*italic*</code>,
@@ -2371,9 +2371,9 @@ function updateTransportLabels() {
   const paused = musicPaused();
   if (paused === lastPausedState) return;   // called from the 50ms fade loop
   lastPausedState = paused;
-  $('goLabel').textContent = paused ? 'Play' : 'GO';
+  $('goLabel').textContent = paused ? 'Continue' : 'GO';
   $('goBtn').classList.toggle('resume', paused);
-  $('pauseLabel').textContent = paused ? 'Resume' : 'Pause';
+  $('pauseLabel').textContent = paused ? 'Play' : 'Pause';
 }
 
 function renderPlayers() {
