@@ -29,6 +29,7 @@ cue lists never leave your device. There is no server, no upload, no account, no
 - Link a music cue to a subtitle line: fire automatically when the line is reached, or
   get a clear reminder and fire it yourself
 - Panic fade, pause and resume, and a master level with a one-tap 50% dip
+- While anything is paused, GO becomes Play and resumes rather than firing the next cue
 - Audio is stored in the browser, so a restart brings the whole show back ready to play
 
 **Subtitles / surtitles**

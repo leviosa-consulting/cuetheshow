@@ -232,6 +232,7 @@
   #musicStandbyLine strong { color: var(--text); font-weight: 600; }
   #musicTransport { display: flex; flex-direction: column; gap: 9px; }
   #goBtn { width: 100%; font-size: 22px; font-weight: 700; padding: 18px 0; letter-spacing: .04em; }
+  #goBtn.resume { background: #24422e; border-color: var(--ok); }
   #mtRow { display: flex; gap: 8px; }
   #mtRow button { flex: 1; padding: 13px 0; font-size: 14px; }
   .mkey {
@@ -273,6 +274,12 @@
   }
   .mcueRow:hover { background: var(--panel2); }
   .mcueRow.standby { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+  /* A stray touch used to select the text on a cue card. Apps do not do that.
+     Anything genuinely editable opts back in below. */
+  body.touch { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  body.touch input, body.touch textarea, body.touch select, body.touch [contenteditable] {
+    -webkit-user-select: text; user-select: text;
+  }
   .mcueRow .grip {
     cursor: grab; color: var(--dim); flex: 0 0 auto; font-size: 12px;
     user-select: none; -webkit-user-select: none; touch-action: none;
@@ -774,10 +781,10 @@
         <div id="playersBox"></div>
         <div id="musicStandbyLine"></div>
         <div id="musicTransport">
-          <button id="goBtn" class="primary" tabindex="-1">GO&nbsp;&nbsp;⏎</button>
+          <button id="goBtn" class="primary" tabindex="-1"><span id="goLabel">GO</span>&nbsp;&nbsp;⏎</button>
           <div id="mtRow">
             <button id="mFadeBtn" tabindex="-1">Fade <span class="mkey">S</span></button>
-            <button id="mPauseBtn" tabindex="-1">Pause <span class="mkey">P</span></button>
+            <button id="mPauseBtn" tabindex="-1"><span id="pauseLabel">Pause</span> <span class="mkey">P</span></button>
             <button id="mPanicBtn" tabindex="-1">Stop <span class="mkey">X</span></button>
           </div>
           <div class="master"><span>Vol</span><input type="range" id="masterCtl" min="0" max="100" step="1"><span class="val" id="masterVal"></span></div>
@@ -837,7 +844,9 @@
         an "on top" cue is never replaced. Each row shows how long the cue runs.
         While a track is playing, click or drag anywhere on its row to move through
         it;<span class="hkeys"> in music-only mode <kbd>←</kbd> and <kbd>→</kbd>
-        nudge it by 5 seconds.</span></li>
+        nudge it by 5 seconds.</span> While anything is paused, GO turns into
+        <em>Play</em> and picks that track back up instead of starting the next
+        cue.</li>
       <li><strong>Subtitles (optional)</strong>: switch Mode to
         <em>Music + subtitles</em> in SETUP, then drop a script PDF or paste text.
         It becomes cues of about 8 words each. <code>*italic*</code>,
@@ -1664,7 +1673,7 @@ function handleKey(e) {
       e.preventDefault(); insertCue(Math.min(index, cues.length - 1)); break;
     case 'Home': e.preventDefault(); goTo(-1); break;
     case 'End': e.preventDefault(); goTo(cues.length - 1); break;
-    case 'Enter': if (appMode !== 'subtitles') { e.preventDefault(); goMusic(); } break;
+    case 'Enter': if (appMode !== 'subtitles') { e.preventDefault(); goOrResume(); } break;
     case 's': case 'S': if (appMode !== 'subtitles') { e.preventDefault(); fadeCurrentMusic(); } break;
     case 'x': case 'X': if (appMode !== 'subtitles') { e.preventDefault(); panicMusic(); } break;
     case 'p': case 'P': if (appMode !== 'subtitles') { e.preventDefault(); pauseResumeMusic(); } break;
@@ -2207,6 +2216,16 @@ function cancelFollows() {
   });
 }
 
+// Everything paused: the big button must resume, not fire the next cue.
+// Firing the next one here is how a paused show gets away from its operator.
+function musicPaused() {
+  return players.length > 0 && players.every(p => p.paused);
+}
+function goOrResume() {
+  if (musicPaused()) { pauseResumeMusic(); return; }
+  goMusic();
+}
+
 function goMusic(fromFollow) {
   if (musicStandby >= musicCues.length) {
     if (!fromFollow) toast('End of the music list');
@@ -2305,7 +2324,18 @@ function musicCueSummary(c) {
   return bits.join(' · ');
 }
 
+let lastPausedState = null;
+function updateTransportLabels() {
+  const paused = musicPaused();
+  if (paused === lastPausedState) return;   // called from the 50ms fade loop
+  lastPausedState = paused;
+  $('goLabel').textContent = paused ? 'Play' : 'GO';
+  $('goBtn').classList.toggle('resume', paused);
+  $('pauseLabel').textContent = paused ? 'Resume' : 'Pause';
+}
+
 function renderPlayers() {
+  updateTransportLabels();
   const box = $('playersBox');
   players.forEach(p => {
     if (!p.row) {
@@ -2740,6 +2770,34 @@ function renderMusic() {
   renderMusicList();
   renderPlayers();
   updateMasterUI();
+  centreStandbyRow();
+}
+
+// The next cue used to sit wherever it fell, often at the bottom edge with the
+// cues after it out of sight. Park it mid-screen instead. Only on a change, so
+// it never fights someone scrolling, editing or dragging.
+function scrollParentOf(el) {
+  let n = el.parentElement;
+  while (n && n !== document.body) {
+    const s = getComputedStyle(n);
+    if (/(auto|scroll)/.test(s.overflowY) && n.scrollHeight > n.clientHeight + 2) return n;
+    n = n.parentElement;
+  }
+  return null;
+}
+
+let lastCentred = null;
+function centreStandbyRow() {
+  if (musicEditorOpenId != null || dragMi != null) return;
+  if (musicStandby === lastCentred) return;
+  lastCentred = musicStandby;
+  const row = document.querySelectorAll('#musicList .mcueRow')[musicStandby];
+  if (!row) return;
+  const sc = scrollParentOf(row);   // console, musicTab or main, by mode and width
+  if (!sc) return;
+  const scBox = sc.getBoundingClientRect();
+  const rowBox = row.getBoundingClientRect();
+  sc.scrollTop += (rowBox.top + rowBox.height / 2) - (scBox.top + scBox.height / 2);
 }
 
 function updateMasterUI() {
@@ -2783,7 +2841,7 @@ function bindMusic() {
   try { savedTab = localStorage.getItem('subtitleTool.rtab') || 'music'; } catch (e) {}
   setRightTab(savedTab === 'cues' ? 'cues' : 'music');
   ['goBtn', 'mFadeBtn', 'mPauseBtn', 'mPanicBtn'].forEach((id, k) => {
-    const fns = [() => goMusic(), fadeCurrentMusic, pauseResumeMusic, panicMusic];
+    const fns = [goOrResume, fadeCurrentMusic, pauseResumeMusic, panicMusic];
     $(id).addEventListener('click', e => {
       e.stopPropagation();
       fns[k]();

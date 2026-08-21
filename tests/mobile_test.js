@@ -60,10 +60,43 @@ const ROOT = require('path').resolve(__dirname, '..');
   await sleep(800);
   await page.evaluate(() => setRightTab('music'));
   await page.tap('#goBtn');
-  await sleep(600);
-  if (!(await page.evaluate(() => players.length))) await sleep(900);
-  check(await page.evaluate(() => players.length === 1 && players[0].a.currentTime > 0.1), 'tap GO plays audio');
+  // The first play after the machine's audio device wakes can take a moment,
+  // so wait for real playback rather than sampling once.
+  const playing = await page.waitForFunction(
+    () => players.length === 1 && players[0].a.currentTime > 0.1, { timeout: 8000 }
+  ).then(() => true).catch(() => false);
+  check(playing, 'tap GO plays audio');
   check(await page.$$eval('.mcueRow .grip', els => els.length === 2 && els.every(g => getComputedStyle(g).display !== 'none')), 'touch: drag grips visible for reordering');
+  check(await page.$eval('.mcueRow', el => {
+    const s = getComputedStyle(el);
+    return (s.webkitUserSelect || s.userSelect) === 'none';
+  }), 'touch: a stray touch cannot select cue text');
+
+  // The next cue parks mid-screen, so the ones after it stay visible
+  await page.evaluate(() => {
+    for (let i = 0; i < 14; i++) {
+      musicCues.push({ id: musicUid++, name: 'Filler ' + i, fileName: 'f.wav', group: 'A',
+        volume: 1, fadeIn: 0, fadeOut: 2, loop: false, startAt: 0, endAt: null,
+        followMode: 'none', followDelay: 3, linkCue: null, linkMode: 'auto', duck: null,
+        step1Vol: null, step1At: null, step2Vol: null, step2At: null,
+        duration: 30, hasAudio: false });
+    }
+    musicStandby = 10; saveMusic(); renderMusic();
+  });
+  await sleep(350);
+  const offCentre = await page.evaluate(() => {
+    const row = document.querySelectorAll('#musicList .mcueRow')[10];
+    let n = row.parentElement, sc = null;
+    while (n && n !== document.body) {
+      const s = getComputedStyle(n);
+      if (/(auto|scroll)/.test(s.overflowY) && n.scrollHeight > n.clientHeight + 2) { sc = n; break; }
+      n = n.parentElement;
+    }
+    if (!sc) return -1;
+    const r = row.getBoundingClientRect(), b = sc.getBoundingClientRect();
+    return Math.round(Math.abs((r.top + r.height / 2) - (b.top + b.height / 2)));
+  });
+  check(offCentre >= 0 && offCentre < 70, 'next cue parks near the middle of the screen (' + offCentre + 'px off)');
   check(await page.evaluate(() =>
     !('wakeLock' in navigator) || wakeLock !== null
   ), 'wake lock held while audio plays (or API absent)');

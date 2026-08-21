@@ -263,13 +263,13 @@ const ROOT = require('path').resolve(__dirname, '..');
   await new Promise(r => setTimeout(r, 700));
   await page.evaluate(() => {
     const c = musicCues[0];
-    c.step1Vol = 0.3; c.step1At = 1; c.step2Vol = 0.8; c.step2At = 3;
+    c.step1Vol = 0.3; c.step1At = 1; c.step2Vol = 0.8; c.step2At = 10;
     musicStandby = 0; saveMusic(); renderMusic();
     $('loadScreen').style.display = 'none';      // a fresh show opens on the
     $('console').classList.add('active');        // load screen; GO needs the console
   });
   check(await page.$$eval('.mcueRow .sum', els =>
-    els[0].textContent.includes('then 30% at 1s') && els[0].textContent.includes('then 80% at 3s')),
+    els[0].textContent.includes('then 30% at 1s') && els[0].textContent.includes('then 80% at 10s')),
     'level plan shows in the cue summary');
   await page.keyboard.press('Enter');
   await new Promise(r => setTimeout(r, 400));
@@ -277,11 +277,13 @@ const ROOT = require('path').resolve(__dirname, '..');
   // Move the track to just past each point. The engine reads the track's own
   // position, so this exercises it without depending on the machine's audio
   // clock (headless output can stall when the audio device is asleep).
+  // The points sit far apart on purpose: each change glides over 2 seconds,
+  // and a track that is really playing would reach the next point mid-glide.
   await page.evaluate(() => { players[0].a.currentTime = 1.2; });
   const lvl1 = await page.waitForFunction(() => players[0] && Math.abs(players[0].vol - 0.3) < 0.05, { timeout: 6000 })
     .then(() => true).catch(() => false);
   check(lvl1, 'drops to the second level once past its time');
-  await page.evaluate(() => { players[0].a.currentTime = 3.2; });
+  await page.evaluate(() => { players[0].a.currentTime = 10.2; });
   const lvl2 = await page.waitForFunction(() => players[0] && Math.abs(players[0].vol - 0.8) < 0.05, { timeout: 8000 })
     .then(() => true).catch(() => false);
   check(lvl2, 'rises to the third level once past its time');
@@ -326,6 +328,19 @@ const ROOT = require('path').resolve(__dirname, '..');
   await page.keyboard.press('ArrowRight');
   await new Promise(r => setTimeout(r, 200));
   check(await page.evaluate(() => players[0].a.currentTime) > back + 3, 'right arrow nudges it forward');
+
+  // Paused: the big button resumes instead of running the next cue
+  const standbyBefore = await page.evaluate(() => musicStandby);
+  await page.keyboard.press('p');
+  await new Promise(r => setTimeout(r, 250));
+  check(await page.evaluate(() => players.every(p => p.paused)), 'P pauses the track');
+  check(await page.$eval('#goLabel', el => el.textContent) === 'Play', 'GO reads Play while paused');
+  check(await page.$eval('#pauseLabel', el => el.textContent) === 'Resume', 'the pause button reads Resume');
+  await page.keyboard.press('Enter');
+  await new Promise(r => setTimeout(r, 350));
+  check(await page.evaluate(() => musicStandby) === standbyBefore, 'GO while paused does not fire the next cue');
+  check(await page.evaluate(() => players.length === 1 && !players[0].paused), 'GO while paused resumes the track');
+  check(await page.$eval('#goLabel', el => el.textContent) === 'GO', 'GO reads GO again once playing');
   await page.keyboard.press('x');
   await new Promise(r => setTimeout(r, 400));
 
